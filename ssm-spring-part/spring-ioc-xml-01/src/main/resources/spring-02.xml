@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd">
+
+    <!--    引用和被引用的组件 必须全部在ioc容器-->
+
+    <!--    1.单个构造参数注入-->
+
+    <!--    步骤1：将他们都存放在ioc容器-->
+    <bean id="userDao" class="com.itguigu.ioc_02.UserDao"></bean>
+
+    <bean id="userService" class="com.itguigu.ioc_02.UserService">
+        <!--        构造参数传值di的配置
+        constructor-arg g构造参数传值的di配置
+        value 直接属性值 String name = "你好"
+        ref 引用其他的bean的id值-->
+        <constructor-arg ref="userDao"></constructor-arg>
+    </bean>
+
+
+    <!--    2.多个构造参数注入-->
+    <bean id="userServicel" class="com.itguigu.ioc_02.UserService">
+        <!--       方案一：构造参数的顺序填写-->
+        <constructor-arg value="18"></constructor-arg>
+        <constructor-arg value="二狗子"></constructor-arg>
+        <constructor-arg ref="userDao"></constructor-arg>
+    </bean>
+
+    <bean id="userServicel" class="com.itguigu.ioc_02.UserService">
+        <!--       方案二：构造参数的名字填写  推荐！-->
+        <constructor-arg name="name" value="二狗子"></constructor-arg>
+        <constructor-arg name="age" value="18"></constructor-arg>
+        <constructor-arg ref="userDao"></constructor-arg>
+    </bean>
+
+    <bean id="userServicel" class="com.itguigu.ioc_02.UserService">
+        <!--       方案三：构造参数的下角标指定填写，不用考虑index-->
+        <constructor-arg index="1" value="二狗子"></constructor-arg>
+        <constructor-arg index="0" value="18"></constructor-arg>
+        <constructor-arg index="2" ref="userDao"></constructor-arg>
+    </bean>
+
+    <!--    3.触发setter方法进行注入-->
+    <bean id="MovieFinder" class="com.itguigu.ioc_02.MovieFinder"></bean>
+
+    <bean id="SimpleMovieLister" class="com.itguigu.ioc_02.SimpleMovieLister">
+        <!--        name 属性名 setter方法的去掉set和首字母小写的名 setMovieFinder -> movieFinder
+        value | ref 二选一 value="直接属性值“ ref="其他bean的id"-->
+        <property name="movieName" value="消失的她"></property>
+        <property name="movieFinder" ref="MovieFinder"></property>
+    </bean>
+</beans>

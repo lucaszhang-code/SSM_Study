@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd">
+
+    <!--    1.可以使用无参数构造实例化组件
+    id 组件的标识，一个组件对象
+    class 组件的全限定符
+    -->
+    <bean id="happyComponent" class="com.itguigu.ioc_01.HappyComponent"></bean>
+
+    <!--    2.静态工厂类如何声明工厂方法进行ioc配置
+    id 组件的标识
+    class 工厂类的权限定符
+    factory-method 静态工厂方法、
+    -->
+    <bean class="com.itguigu.ioc_01.ClientService" factory-method="createInstance" id="clientService"></bean>
+
+    <!--    3.非静态工厂如何声明ioc配置-->
+    <!--    3.1配置工厂类的组件-->
+    <bean id="DefaultServiceLocator" class="com.itguigu.ioc_01.DefaultServiceLocator"></bean>
+    <!--    3.2通过制定非静态工厂对象和方法名 来配置生成的ioc信息-->
+    <bean id="clientService2" factory-bean="DefaultServiceLocator" factory-method="createClientServiceInstance"></bean>
+
+</beans>
