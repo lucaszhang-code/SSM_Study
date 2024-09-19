@@ -2,6 +2,8 @@ package com.itguigu.test;
 
 
 import com.itguigu.ioc_03.HappyComponent;
+import com.itguigu.ioc_05.JavaBean;
+import org.junit.jupiter.api.Test;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.support.ClassPathXmlApplicationContext;
 
@@ -40,7 +42,26 @@ public class SpringIocTest {
         HappyComponent happyComponent2 = applicationContext.getBean(HappyComponent.class);
 
         happyComponent1.doWork();
+    }
 
+    // 测试ioc配置的初始化和销毁方法
+    @Test
+    public void test_04(){
 
+        ClassPathXmlApplicationContext applicationContext = new ClassPathXmlApplicationContext("spring-04.xml");
+
+        applicationContext.getBean(JavaBean.class);
+
+        // 正常结束ioc容器
+        applicationContext.close();
+    }
+
+    @Test
+    public void test_05(){
+        ClassPathXmlApplicationContext applicationContext = new ClassPathXmlApplicationContext("spring-05.xml");
+
+       // 读取组件
+        JavaBean javaBean = applicationContext.getBean("javaBean", JavaBean.class);
+        System.out.println(javaBean);
     }
 }

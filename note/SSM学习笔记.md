@@ -224,5 +224,138 @@ HappyComponent happyComponent1 = applicationContext.getBean("happyComponent", Ha
 HappyComponent happyComponent2 = applicationContext.getBean(HappyComponent.class);
 ```
 
+### 高级特性：组件作用域和周期的配置
 
+一个组件的周期通常包括`init`(创建),服务，`destroy`(销毁)；我们可以在Bean中配置相应的`init`和`destroy`回调函数
 
+以下是`JavaBean`类的`init`和`destroy`方法
+
+```java
+public class JavaBean {
+    // 必须是void和public以及无参数
+    public void init() {
+        System.out.println("JavaBean init");
+    }
+
+    // 销毁方法
+    public void destroy() {
+        System.out.println("JavaBean destroy");
+    }
+}
+```
+
+在XML文件中使用`init-method`和`destroy-method`去配置，组件将会自动在相应生命周期调用相应的回调函数
+
+```xml
+ <!--    通过init-method声明初始化变量名 通过destroy-method声明销毁方法变量名-->
+    <bean id="JavaBean" class="com.itguigu.ioc_04.JavaBean" init-method="init" destroy-method="destroy"></bean>
+```
+
+### **FactoryBean**的特性和使用
+
+在一些复杂的项目中，类的创建和配置是很复杂的，我们不想将类的创建和配置与逻辑代码混在一起，这不方便后期的维护和管理，因此我们会将类的创建和配置统一封装并交给`FactoryBean`，让程序员不必关注创建的复杂过程，可以直接获取对象并调用它的方法
+
+以下是`JavaBean`类
+
+```java
+public class JavaBean {
+    private String name;
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    @Override
+    public String toString() {
+        return "JavaBean{" +
+                "name='" + name + '\'' +
+                '}';
+    }
+}
+```
+
+我们将`JavaBean`的创建交给`JavaBeanFactoryBean`，并且需要重写`getObject`和`getObjectType`函数
+
+```java
+public class JavaBeanFactoryBean implements FactoryBean<JavaBean> {
+    @Override
+    public JavaBean getObject() throws Exception {
+        // 使用自己的方式实例化对象
+        JavaBean javaBean = new JavaBean();
+        javaBean.setName(value);
+        return javaBean;
+    }
+
+    @Override
+    public Class<?> getObjectType() {
+        return JavaBean.class;
+    }
+}
+```
+
+xml文件的配置
+
+```xml
+ <bean id="javaBean" class="com.itguigu.ioc_05.JavaBeanFactoryBean"></bean>
+```
+
+进行代码的测试
+
+```java
+ @Test
+    public void test_05(){
+        ClassPathXmlApplicationContext applicationContext = new ClassPathXmlApplicationContext("spring-05.xml");
+
+       // 读取组件
+        JavaBean javaBean = applicationContext.getBean("javaBean", JavaBean.class);
+        System.out.println(javaBean);
+    }
+```
+
+但是`JavaBean`类存在私有成员变量`name`我们该如何传参呢？
+
+你可能会写出以下代码
+
+```xml
+    <bean id="javaBean" class="com.itguigu.ioc_05.JavaBeanFactoryBean">
+        <!--        此位置的属性是给JavaBean工厂配置的，而不是getObject-->
+        <property name="value" value="Lucas"></property>
+    </bean>
+```
+
+显然我们配置的是`JavaBeanFactoryBean`类，你这样写参数只会给`JavaBeanFactoryBean`，而不是`JavaBean`，因此我们可以对`JavaBeanFactoryBean`稍做配置
+
+给那个类自定义私有成员变量`value`，并且接收外部传参，也就是我们配置的`property`
+
+在`getObject`函数中` javaBean.setName(value);`从而实现`javaBean`类参数的注入
+
+```java
+public class JavaBeanFactoryBean implements FactoryBean<JavaBean> {
+    private String value;
+
+    public void setValue(String value) {
+        this.value = value;
+    }
+
+    @Override
+    public JavaBean getObject() throws Exception {
+        // 使用自己的方式实例化对象
+        JavaBean javaBean = new JavaBean();
+        javaBean.setName(value);
+        return javaBean;
+    }
+
+    @Override
+    public Class<?> getObjectType() {
+        return JavaBean.class;
+    }
+}
+```
+
+运行结果
+
+`JavaBean{name='Lucas'}`

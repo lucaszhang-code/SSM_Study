@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd">
+
+    <!--    通过init-method声明初始化变量名 通过destroy-method声明销毁方法变量名-->
+    <bean id="JavaBean" class="com.itguigu.ioc_04.JavaBean" init-method="init" destroy-method="destroy"></bean>
+
+    <!--    默认是单例模式-->
+    <bean id="JavaBean2" class="com.itguigu.ioc_04.JavaBean2" scope="singleton"></bean>
+
+</beans>
