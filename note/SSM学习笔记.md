@@ -359,3 +359,254 @@ public class JavaBeanFactoryBean implements FactoryBean<JavaBean> {
 运行结果
 
 `JavaBean{name='Lucas'}`
+
+### 基于XMl方式整合三层架构
+
+#### 需求分析
+
+搭建一个三层架构案例，模拟查询全部学生（学生表）信息，持久层使用JdbcTemplate和Druid技术，使用XML方式进行组件管理！
+
+#### 结构图
+
+![XML实现三层架构图](./assets/XML实现三层架构图.png)
+
+在一个后端中我们通常将业务分成三层架构，分别是**控制层**，**业务层**，**DAO层**
+
+##### DAO层
+
+DAO的全称是**DataBase Access Object** 数据库访问对象，主要负责连接数据库，完成数据库的增删改查业务
+
+##### 业务层（Service）
+
+业务层负责处理DAO层传递过来的原始数据，对数据进行深加工
+
+##### 控制层（Controller）
+
+控制层负责通过网络与前端进行交流，传递业务层加工过的数据
+
+---
+
+下面我将举一个例子方便理解这三个业务层的关系
+
+假设数据库里面存储着一个人的工资表，其中包括基础工资、绩效、补贴等信息，DAO层负责从数据库里面原封不动的取出这些数据，并把他们丢给业务层，业务层负责处理这些未加工的数据，比如计算工资总额，进行扣税、缴纳社保等操作，并将结果交给控制层，控制层负责与前端沟通，如果前端需要工资总额的数据，就将业务层处理过的数据交给前端展示
+
+理清楚这些关系后我们回到业务上面，假设我们的目的是获取全部学生数据，分别进行三层架构的编写
+
+#### DAO层代码
+
+1.编写`StudentDao`接口，对外暴露获取DAO层数据的方法
+
+```java
+public interface StudentDao {
+    List<Student> queryAll();
+}
+```
+
+2.编写`StudentDao`的具体实现方法,类命名为`StudentDaoImpl`，继承自`StudentDao`
+
+由于我们DAO层是通过`jdbcTemplate`的方法进行注入，需要构造他的`Setter`方法
+
+并且我们需要重写`queryAll`方法
+
+特别说明这两行代码
+
+```java
+String sql = "select id, name, age, class as classes from students";
+List<Student> students = jdbcTemplate.query(sql, new BeanPropertyRowMapper<Student>(Student.class));
+```
+
+由于class是java 的关键字，因此数据库的字段名取别名为classes
+
+通过BeanPropertyRowMapper帮助我们自动映射列和属性值，我们不需要根据字段名取出对应数据
+
+```java
+public class StudentDaoImpl implements StudentDao {
+
+    // 注入jdbcTemplate对象
+    public void setJdbcTemplate(JdbcTemplate jdbcTemplate) {
+        this.jdbcTemplate = jdbcTemplate;
+    }
+
+    private JdbcTemplate jdbcTemplate;
+
+    @Override
+    public List<Student> queryAll() {
+        String sql = "select id, name, age, class as classes from students";
+        List<Student> students = jdbcTemplate.query(sql, new BeanPropertyRowMapper<Student>(Student.class));
+        System.out.println(students);
+        return students;
+    }
+}
+```
+
+#### Service层代码
+
+1.编写`StudentService`接口，负责将获取业务层数据的方法对外暴露出去
+
+```java
+public interface StudentService {
+    List<Student> findAll();
+}
+```
+
+2.实现接口的具体方法类
+
+我们也需要提供`StudentDao`的`Setter`方法，并且重写`findAll`函数，调用DAO层的`queryAll`方法
+
+```java
+public class StudentServiceImpl implements StudentService {
+    private StudentDao studentDao;
+
+    public void setStudentDao(StudentDao studentDao) {
+        this.studentDao = studentDao;
+    }
+
+    @Override
+    public List<Student> findAll() {
+        List<Student> students = studentDao.queryAll();
+        System.out.println("studentService:" + students);
+        return students;
+    }
+}
+```
+
+#### Controller层代码
+
+1.由于控制层只负责网络数据传输，因此他不需要接口
+
+也需要提供`StudentService`的`Setter`方法
+
+```java
+public class StudentController {
+    public void setStudentService(StudentService studentService) {
+        this.studentService = studentService;
+    }
+
+    private StudentService studentService;
+
+    public void findAll(){
+        List<Student> all = studentService.findAll();
+        System.out.println("最终学员数据为：" + all);
+    }
+}
+```
+
+#### XML编写
+
+我们通常会将数据库的用户名、密码、URL、驱动信息单独写成`jdbc.properties`配置文件
+
+```
+itguigu.url=jdbc:mysql://localhost:3306/studb
+itguigu.driver=com.mysql.cj.jdbc.Driver
+itguigu.username=root
+itguigu.password=123456
+```
+
+使用`<context:property-placeholder location="classpath:jdbc.properties" />`引入配置文件
+
+```xml
+<context:property-placeholder location="classpath:jdbc.properties" />
+<!--    配置druid-->
+<bean id="dataSource" class="com.alibaba.druid.pool.DruidDataSource">
+    <property name="url" value="${itguigu.url}"></property>
+    <property name="username" value="${itguigu.username}"></property>
+    <property name="password" value="${itguigu.password}"></property>
+    <property name="driverClassName" value="${itguigu.driver}"></property>
+</bean>
+
+<!--    jdbcTemplate-->
+<bean id="jdbcTemplate" class="org.springframework.jdbc.core.JdbcTemplate">
+    <property name="dataSource" ref="dataSource"></property>
+</bean>
+<!--    dao配置 di jdbcTemplate-->
+<bean id="studentDao" class="com.itguigu.dao.impl.StudentDaoImpl">
+    <property name="jdbcTemplate" ref="jdbcTemplate"></property>
+</bean>
+<!--    service配置di dao-->
+<bean id="studentService" class="com.itguigu.service.impl.StudentServiceImpl">
+    <property name="studentDao" ref="studentDao"></property>
+</bean>
+<!--    controller配置di service-->
+<bean id="studentController" class="com.itguigu.contoller.StudentController">
+    <property name="studentService" ref="studentService"></property>
+</bean>
+```
+
+## 注解方式管理bean
+
+在以前，我们都是通过配置xml文件的方式管理bean，这是很麻烦的，我们可以通过注解的方式进行bean配置
+
+### 普通组件
+
+普通组件采用`@Component`标识符，他的id是类名首写字母小写，class是类组件自动配置
+
+如果要单独指定组件的id名，可以采用`@Component(value="你的名字")`或者`@Component("你的名字")`这种方式自定义
+
+```java
+@Component  //<bean id="commonComponent" class=类组件>
+
+/**
+ * 1.标记注解
+ * 2.配置指定包
+ */
+public class CommonComponent {
+
+}
+```
+
+### DAO组件
+
+DAO组件使用`@Repository`标识符
+
+```java
+@Repository
+public class XxxDao {
+}
+```
+
+### Service组件
+
+Service组件使用`@Service`标识符
+
+```java
+@Service
+public class XxxService {
+}
+```
+
+### Controller组件
+
+Controller组件使用`@Controller`标识符
+
+```java
+@Controller
+public class XxxController {
+}
+```
+
+### XML配置
+
+当然我们还是需要对xml文件进行简单的配置
+
+base-package是进行bean管理的位置，如果是整个软件包，他会对里面所有做了注解的组件统一进行管理
+
+```xml
+   <!--    1.普通配置包扫描
+            指定ioc容器去哪找注解类
+    -->
+    <context:component-scan base-package="com.itguigu.ioc_01"/>
+
+    <!--    2.指定包但是排除注解-->
+    <context:component-scan base-package="com.itguigu">
+        <context:exclude-filter type="annotation" expression="org.springframework.stereotype.Repository"/>
+    </context:component-scan>
+
+    <!--    3.指定包含注解
+    base-package指定包下所有的注解都生效！
+    use-default-filters="false"指定包的所有注解都不生效-->
+    <context:component-scan base-package="com.itguigu" use-default-filters="false">
+        <!--        只扫描次包下的注解-->
+        <context:include-filter type="annotation" expression="org.springframework.stereotype.Repository"/>
+    </context:component-scan>
+```
+
