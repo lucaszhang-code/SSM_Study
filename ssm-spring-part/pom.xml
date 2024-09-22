@@ -12,6 +12,7 @@
         <module>spring-ioc-xml-01</module>
         <module>spring-ioc-xml-practice-02</module>
         <module>spring-ioc-annotation-03</module>
+        <module>spring-ioc-annotation-practice-05</module>
     </modules>
 
     <properties>
@@ -62,6 +63,12 @@
             <groupId>org.springframework</groupId>
             <artifactId>spring-jdbc</artifactId>
             <version>6.0.6</version>
+        </dependency>
+
+        <dependency>
+            <groupId>jakarta.annotation</groupId>
+            <artifactId>jakarta.annotation-api</artifactId>
+            <version>3.0.0</version>
         </dependency>
     </dependencies>
 

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:context="http://www.springframework.org/schema/context"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd http://www.springframework.org/schema/context https://www.springframework.org/schema/context/spring-context.xsd">
+
+    <!--    1.先放到ioc容器-->
+    <!--    2.di配置，xml方式必须有set方法-->
+    <!--    <bean id="userService" class="com.itguigu.ioc_03.UserServiceImpl"> </bean>-->
+    <!--    -->
+    <!--    <bean id="userController" class="com.itguigu.ioc_03.UserController">-->
+    <!--        <property name="userService" ref="userService"></property>-->
+    <!--    </bean>-->
+
+    <context:component-scan base-package="com.itguigu.ioc_03"></context:component-scan>
+
+</beans>

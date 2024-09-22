@@ -610,3 +610,427 @@ base-package是进行bean管理的位置，如果是整个软件包，他会对�
     </context:component-scan>
 ```
 
+### 组件作用域和周期
+
+使用注解同样也可以配置周期对应的回调函数
+
+#### 组件初始化回调函数
+
+```java
+@PostConstruct
+public void init(){
+    System.out.println("init");
+}
+```
+
+#### 组件销毁回调函数
+
+```java
+@PreDestroy
+public void destroy(){
+    System.out.println("destroy");
+}
+```
+
+#### 单例和多例模式切换
+
+```java
+@Scope(scopeName = ConfigurableBeanFactory.SCOPE_SINGLETON)		单例模式，默认
+@Scope(scopeName = ConfigurableBeanFactory.SCOPE_PROTOTYPE)		多例模式
+@Component
+public void JavaBean{}
+```
+
+### 引用类型自动装配
+
+我们知道在xml配置bean的时候，每个类需要对应的setter方法进行注入，例如
+
+声明接口
+
+```java
+public interface UserService {
+    public String show();
+}
+```
+
+实现方法
+
+```java
+@Service
+public class UserServiceImpl implements UserService {
+    @Override
+    public String show() {
+        return "UserServiceImpl show";
+    }
+}
+```
+
+Controller层
+
+```java
+@Controller
+public class UserController {
+    private UserService userService;
+    
+    public void setUserService(UserService userService){
+        this.userService = userService;
+    }
+
+    public void show(){
+        // 调用业务层的方法
+        String show = userService.show();
+        System.out.println(show);
+    }
+}
+```
+
+Test调用Controller
+
+```java
+    public void test03(){
+        ClassPathXmlApplicationContext context = new ClassPathXmlApplicationContext("spring-03.xml");
+        UserController userController = context.getBean(UserController.class);
+        userController.show();
+    }
+```
+
+但是通过注解的方式我们就不需要再编写setter方法
+
+#### 使用`@Autowired`
+
+```java
+@Controller
+public class UserController {
+    @Autowired
+    private UserService userService;
+
+    public void show(){
+        // 调用业务层的方法
+        String show = userService.show();
+        System.out.println(show);
+    }
+}
+```
+
+#### 使用`@Qualifier("")`自定义bean名称
+
+虽然对于组件我们不用单独指定id，因为他的id默认是首字母的小写，但是一个接口可能会被多个类重写，如果我们不指定bean名称，DI就无法找到指定的组件
+
+例如以下是一个接口
+
+```java
+public interface UserService {
+    public String show();
+}
+```
+
+下面两个类分别重写了show方法
+
+```java
+@Service
+public class NewUserServiceImpl implements UserService {
+
+    @Override
+    public String show() {
+        return "NewUserServiceImpl show";
+    }
+}
+```
+
+```java
+@Service
+public class UserServiceImpl implements UserService {
+
+    @Override
+    public String show() {
+        return "UserServiceImpl show";
+    }
+}
+
+```
+
+如果我们只写一个`UserService userService`，就会报错
+
+```java
+@Controller
+public class UserController {
+    @Autowired
+    private UserService userService;
+
+    public void show(){
+        // 调用业务层的方法
+        String show = userService.show();
+        System.out.println(show);
+    }
+}
+```
+
+修改办法，加上` @Qualifier("userServiceImpl")`这样就指定了组件
+
+```java
+@Controller
+public class UserController {
+    @Autowired
+    @Qualifier("userServiceImpl")
+    private UserService userService;
+
+    public void show(){
+        // 调用业务层的方法
+        String show = userService.show();
+        System.out.println(show);
+    }
+}
+```
+
+#### 使用`@Resource(name = "")`简化写法
+
+当然我们也有简化写法，比如`@Resource(name = "userServiceImpl")`，但是`@Resource`是一个包里面的内容
+
+```java
+@Controller
+public class UserController {
+    @Resource(name = "userServiceImpl")
+    private UserService userService;
+
+    public void show(){
+        // 调用业务层的方法
+        String show = userService.show();
+        System.out.println(show);
+    }
+}
+```
+
+
+
+```xml
+<dependency>
+    <groupId>jakarta.annotation</groupId>
+    <artifactId>jakarta.annotation-api</artifactId>
+    <version>3.0.0</version>
+</dependency>
+```
+
+### bean属性赋值，基本属性赋值
+
+#### 方案一：直接赋值
+
+```java
+ private String name = "Lucas";
+```
+
+#### 方案二：Value注解
+
+```java
+@Value("20")
+private int age;
+```
+
+当然使用`@Value`注解一般是引入外部配置
+
+例如`jdbc.properties`文件有以下信息
+
+```properties
+jdbc.password = 123456
+```
+
+Value注入可以写成
+
+其中` @Value("${jdbc.username:admin}")`是指定默认值，为了防止配置文件里面没有值
+
+```java
+ @Value("${jdbc.username:admin}")
+ private String userName;
+ @Value("${jdbc.password:000000}")
+ private String password;
+```
+
+### 使用注解的方式配置bean和DI，完成三层架构
+
+由于在xml配置，完成三层架构的章节我们分析过这个案例，这里我就不再作说明，直接给出代码
+
+![注解方式实现三层架构图](./assets/XML实现三层架构图.png)
+
+#### Pojo层
+
+```java
+package com.itguigu.pojo;
+
+public class Student {
+    private Integer id;
+    private String name;
+    private String gender;
+    private Integer age;
+    private String classes;
+
+    public Integer getId() {
+        return id;
+    }
+
+    public void setId(Integer id) {
+        this.id = id;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public String getGender() {
+        return gender;
+    }
+
+    public void setGender(String gender) {
+        this.gender = gender;
+    }
+
+    public Integer getAge() {
+        return age;
+    }
+
+    public void setAge(Integer age) {
+        this.age = age;
+    }
+
+    public String getClasses() {
+        return classes;
+    }
+
+    public void setClasses(String classes) {
+        this.classes = classes;
+    }
+
+    @Override
+    public String toString() {
+        return "Student{" +
+                "id=" + id +
+                ", name='" + name + '\'' +
+                ", gender='" + gender + '\'' +
+                ", age=" + age +
+                ", classes='" + classes + '\'' +
+                '}';
+    }
+}
+```
+
+#### Dao层
+
+##### 接口
+
+```java
+public interface StudentDao {
+    List<Student> queryAll();
+}
+```
+
+##### 实现类
+
+```java
+@Repository
+public class StudentDaoImpl implements StudentDao {
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
+
+    @Override
+    public List<Student> queryAll() {
+        String sql = "select * from students";
+        List<Student> studentList = jdbcTemplate.query(sql, new BeanPropertyRowMapper<Student>(Student.class));
+        System.out.println("dao: " + studentList);
+        return studentList;
+    }
+}
+```
+
+#### Service层
+
+##### 接口
+
+```java
+public interface StudentService {
+    List<Student> findAll();
+}
+```
+
+##### 实现类
+
+```java
+@Service
+public class StudentServiceImpl implements StudentService {
+
+    @Autowired
+    private StudentDao studentDao;
+
+    @Override
+    public List<Student> findAll() {
+        List<Student> studentList = studentDao.queryAll();
+        System.out.println("service: " + studentList);
+        return studentList;
+    }
+}
+```
+
+#### Controller层
+
+```java
+@Controller
+public class StudentController {
+    @Autowired
+    private StudentService studentService;
+
+    public void findAllStudents() {
+        List<Student> studentList = studentService.findAll();
+        System.out.println("controller: " + studentList);
+    }
+}
+```
+
+#### Test测试类
+
+```java
+public class SpringIocTest {
+    @Test
+    public void test() {
+        ClassPathXmlApplicationContext context = new ClassPathXmlApplicationContext("spring-01.xml");
+        StudentController studentController = context.getBean(StudentController.class);
+        studentController.findAllStudents();
+
+    }
+}
+```
+
+#### 配置xml
+
+在这里`DruidDataSource`和`JdbcTemplate`都是New出来的，只能采取xml配置bean
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:context="http://www.springframework.org/schema/context"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd http://www.springframework.org/schema/context https://www.springframework.org/schema/context/spring-context.xsd">
+
+    <context:component-scan base-package="com.itguigu"></context:component-scan>
+    <context:property-placeholder location="jdbc.properties"></context:property-placeholder>
+
+    <bean id="dataSource" class="com.alibaba.druid.pool.DruidDataSource">
+        <property name="driverClassName" value="${itguigu.driver}"></property>
+        <property name="username" value="${itguigu.username}"></property>
+        <property name="password" value="${itguigu.password}"></property>
+        <property name="url" value="${itguigu.url}"></property>
+    </bean>
+    <bean id="jdbcTemplate" class="org.springframework.jdbc.core.JdbcTemplate">
+        <property name="dataSource" ref="dataSource"></property>
+    </bean>
+</beans>
+```
+
+#### 配置文件
+
+```properties
+itguigu.url=jdbc:mysql://localhost:3306/studb
+itguigu.driver=com.mysql.cj.jdbc.Driver
+itguigu.username=root
+itguigu.password=123456
+```
