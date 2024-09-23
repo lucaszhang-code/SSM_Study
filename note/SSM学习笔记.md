@@ -1034,3 +1034,185 @@ itguigu.driver=com.mysql.cj.jdbc.Driver
 itguigu.username=root
 itguigu.password=123456
 ```
+
+## 基于配置类管理Bean
+
+在之前的项目中，我们是采取注解+xml'的方式配置的管理DI，在未来的项目中，我们更多采用的方式是抛弃xml方式配置，转而采取配置类方式管理和配置Bean
+
+### 配置类+注解
+
+例如我们有一个配置类`JavaConfiguration`，专门用于配置类
+
+| 配置类                                                 | XML                                                          |
+| ------------------------------------------------------ | ------------------------------------------------------------ |
+| `@ComponentScan(value = "com.itguigu.ioc_01")`         | `<context:component-scan base-package="com.itguigu.ioc_01"></context:component-scan>` |
+| `@PropertySource(value = "classpath:jdbc.properties")` | `<context:property-placeholder location="jdbc.properties"></context:property-placeholder`> |
+| `@Configuration`                                       | 无                                                           |
+
+```java
+@Configuration
+@PropertySource(value = "classpath:jdbc.properties")
+@ComponentScan(value = "com.itguigu.ioc_01")
+public class JavaConfiguration {
+    
+}
+```
+
+例如，我们需要使用`Druid`连接池，就有以下写法
+
+`@Value`注解在这里就可以引用外部配置文件
+
+函数名默认就是Bean的id值，可以在函数里面实现具体的方法
+
+凡是在配置类里面的方法都必须使用`@Bean`注解
+
+`@Bean(value = "Lucas", initMethod = "", destroyMethod = "")`,其中`value`是Bean的别名，`initMethod`是初始化回调函数名，`destroyMethod`是销毁回调函数名
+
+```java
+@Configuration
+@PropertySource(value = "classpath:jdbc.properties")
+@ComponentScan(value = "com.itguigu.ioc_01")
+public class JavaConfiguration {
+    @Value("${itguigu.url}")
+    private String url;
+    @Value("${itguigu.username}")
+    private String username;
+    @Value("${itguigu.password}")
+    private String password;
+    @Value("${itguigu.driver}")
+    private String driverClassName;
+    
+    @Bean(value = "Lucas", initMethod = "", destroyMethod = "")
+    public DruidDataSource dataSource() {
+        // 实现具体的实例化过程
+        DruidDataSource dataSource = new DruidDataSource();
+        dataSource.setDriverClassName(driverClassName);
+        dataSource.setUrl(url);
+        dataSource.setUsername(username);
+        dataSource.setPassword(password);
+        return dataSource;
+    }
+}
+```
+
+如需在配置类里面引用其他类的方法，比如`JdbcTemplate`需要引用`DruidDataSource`类
+
+只需要直接调用就可以了
+
+```java
+@Bean
+public JdbcTemplate getJdbcTemplate() {
+    JdbcTemplate jdbcTemplate = new JdbcTemplate();
+    // 需要ioc里面的其他组件
+    // 方案一：如果其他组件也是@Bean方法，可以直接调用 | 从ioc容器获取组件
+    jdbcTemplate.setDataSource(dataSource1());
+    return jdbcTemplate;
+}
+```
+
+也有别的写法，直接将参数传进去
+
+```java
+@Bean
+// Lucas是取的别名
+public JdbcTemplate getJdbcTemplate1(DataSource Lucas) {
+    JdbcTemplate jdbcTemplate = new JdbcTemplate();
+    // 需要ioc里面的其他组件
+    // 方案二：形参列表声明的想要的组件类型，可以是一个，也可以是多个！ioc容器也会注入
+    // 形参变量注入，要求必须有对应的类型和组件，如果没有抛异常
+    // 如果有多个，可以写形参名称等同于对应bean标识即可
+    jdbcTemplate.setDataSource(Lucas);
+    return jdbcTemplate;
+}
+```
+
+### 创建ioc容器
+
+```java
+ApplicationContext applicationContext = new AnnotationConfigApplicationContext(配置类);
+```
+
+当然如果拆开写
+
+```java
+AnnotationConfigApplicationContext annotationConfigApplicationContext = new AnnotationConfigApplicationContext();
+annotationConfigApplicationContext.register(JavaConfiguration.class);
+annotationConfigApplicationContext.refresh();
+```
+
+剩下的就一样了
+
+### 使用配置类+注解的方式完成三层架构
+
+由于大部分代码并没有区别，这里只展示配置类的代码
+
+```java
+@Configuration
+@ComponentScan(basePackages = "com.itguigu")
+@PropertySource(value = "classpath:jdbc.properties")
+public class JavaConfig {
+    @Value("${itguigu.driver}")
+    private String driver;
+    @Value("${itguigu.url}")
+    private String url ;
+    @Value("${itguigu.username}")
+    private String username;
+    @Value("${itguigu.password}")
+    private String password;
+
+    @Bean
+    public DataSource dataSource() {
+        DruidDataSource dataSource = new DruidDataSource();
+        dataSource.setDriverClassName(driver);
+        dataSource.setUrl(url);
+        dataSource.setUsername(username);
+        dataSource.setPassword(password);
+        return dataSource;
+    }
+
+    @Bean
+    public JdbcTemplate JdbcTemplate(DataSource dataSource) {
+        JdbcTemplate jdbcTemplate = new JdbcTemplate();
+        jdbcTemplate.setDataSource(dataSource);
+        return jdbcTemplate;
+    }
+}
+```
+
+### @Import扩展
+
+`@Import` 注释允许从另一个配置类加载 `@Bean` 定义，如以下示例所示：
+
+```java
+@Configuration
+public class ConfigA {
+
+  @Bean
+  public A a() {
+    return new A();
+  }
+}
+
+@Configuration
+@Import(ConfigA.class)
+public class ConfigB {
+
+  @Bean
+  public B b() {
+    return new B();
+  }
+}
+```
+
+现在，在实例化上下文时不需要同时指定 `ConfigA.class` 和 `ConfigB.class` ，只需显式提供 `ConfigB` ，如以下示例所示：
+
+```java
+public static void main(String[] args) {
+  ApplicationContext ctx = new AnnotationConfigApplicationContext(ConfigB.class);
+
+  // now both beans A and B will be available...
+  A a = ctx.getBean(A.class);
+  B b = ctx.getBean(B.class);
+}
+```
+
