@@ -1216,3 +1216,562 @@ public static void main(String[] args) {
 }
 ```
 
+## Spring AOP面向切片编程
+
+### 1.场景引入
+
+简单实现计算接口
+
+```java
+public interface Calculator {
+
+    int add(int i, int j);
+
+    int sub(int i, int j);
+
+    int mul(int i, int j);
+
+    int div(int i, int j);
+}
+```
+
+具体实现
+
+```java
+public class CalculatorPureImpl implements Calculator {
+    @Override
+    public int add(int i, int j) {
+
+        int result = i + j;
+        return result;
+    }
+
+    @Override
+    public int sub(int i, int j) {
+
+        int result = i - j;
+        return result;
+    }
+
+    @Override
+    public int mul(int i, int j) {
+
+        int result = i * j;
+        return result;
+    }
+
+    @Override
+    public int div(int i, int j) {
+
+        int result = i / j;
+        return result;
+    }
+}
+```
+
+我们希望在执行计算的时候，可以生成对应的日志，比如输出i和j的值，然后输出result值
+
+```java
+    @Override
+    public int add(int i, int j) {
+        System.out.println("i = " + i + ", j = " + j);
+        int result = i + j;
+        System.out.println("result = " + result);
+        return result;
+    }
+
+    @Override
+    public int sub(int i, int j) {
+        System.out.println("i = " + i + ", j = " + j);
+        int result = i - j;
+        System.out.println("result = " + result);
+        return result;
+    }
+
+    @Override
+    public int mul(int i, int j) {
+        System.out.println("i = " + i + ", j = " + j);
+        int result = i * j;
+        System.out.println("result = " + result);
+        return result;
+    }
+
+    @Override
+    public int div(int i, int j) {
+        System.out.println("i = " + i + ", j = " + j);
+        int result = i / j;
+        System.out.println("result = " + result);
+        return result;
+    }
+}
+```
+
+这是添加了输出日志的代码，可以发现，代码变得十分冗余，有大量的重复代码，如果以后有更多这样的方法，我们岂不是全部都要配置一次
+
+这里就引出了代理的概念，它类似于中介，我们能不能通过代理去调用对应的方法，我们只需要在代理哪里去配置输出日志，从而不改动核心代码
+
+#### 静态代理
+
+```java
+/**
+ * 代理类
+ */
+public class StaticProxyCalculator implements Calculator {
+
+    private Calculator calculator;
+
+    // 使用构造方法传入目标
+    public StaticProxyCalculator(Calculator target) {
+        this.calculator = target;
+    }
+
+    @Override
+    public int add(int i, int j) {
+        // 非核心业务交给中介代理
+        System.out.println("i = " + i + ", j = " + j);
+        int result = calculator.add(i, j);
+        System.out.println("result = " + result);
+        return result;
+    }
+
+    @Override
+    public int sub(int i, int j) {
+        return 0;
+    }
+
+    @Override
+    public int mul(int i, int j) {
+        return 0;
+    }
+
+    @Override
+    public int div(int i, int j) {
+        return 0;
+    }
+}
+```
+
+输出类
+
+```java
+public static void main(String[] args) {
+    Calculator target = new CalculatorPureImpl();
+    // 中介对象
+    Calculator proxy = new StaticProxyCalculator(target);
+    int result = proxy.add(1, 2);
+}
+```
+
+#### 动态代理
+
+动态代理技术分类
+
+- JDK动态代理：JDK原生的实现方式，需要被代理的目标类必须**实现接口**！他会根据目标类的接口动态生成一个代理对象！代理对象和目标对象有相同的接口！（拜把子）
+- cglib：通过继承被代理的目标类实现代理，所以不需要目标类实现接口！（认干爹）
+
+基于JDK代理
+
+```java
+// jdk动态代理
+public class ProxyFactory {
+    private Object target;
+
+    public ProxyFactory(Object target) {
+        this.target = target;
+    }
+
+    public Object getProxy() {
+
+        /**
+         * newProxyInstance()：创建一个代理实例
+         * 其中有三个参数：
+         * 1、classLoader：加载动态生成的代理类的类加载器
+         * 2、interfaces：目标对象实现的所有接口的class对象所组成的数组
+         * 3、invocationHandler：设置代理对象实现目标对象方法的过程，即代理类中如何重写接口中的抽象方法
+         */
+        ClassLoader classLoader = target.getClass().getClassLoader();
+        Class<?>[] interfaces = target.getClass().getInterfaces();
+        InvocationHandler invocationHandler = new InvocationHandler() {
+            @Override
+            public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
+                /**
+                 * proxy：代理对象
+                 * method：代理对象需要实现的方法，即其中需要重写的方法
+                 * args：method所对应方法的参数
+                 */
+                Object result = null;
+                try {
+                    System.out.println("[动态代理][日志] " + method.getName() + "，参数：" + Arrays.toString(args));
+                    // 通过反射调用目标方法
+                    result = method.invoke(target, args);
+                    System.out.println("[动态代理][日志] " + method.getName() + "，结果：" + result);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    System.out.println("[动态代理][日志] " + method.getName() + "，异常：" + e.getMessage());
+                } finally {
+                    System.out.println("[动态代理][日志] " + method.getName() + "，方法执行完毕");
+                }
+                return result;
+            }
+        };
+
+        // 生成jdk代理对象
+        // 参数一：类加载器
+        // 参数二：目标类的接口
+        // 参数三：具体要进行的代理动作
+        return Proxy.newProxyInstance(classLoader, interfaces, invocationHandler);
+    }
+}
+```
+
+测试代码
+
+```java
+public static void main(String[] args) {
+     // jdk代理
+     ProxyFactory factory = new ProxyFactory(target);
+     // 使用接口借值 = 代理对象[兄弟 拜把子]
+     Calculator proxy1 = (Calculator) factory.getProxy();
+     proxy1.add(1, 2);
+}
+```
+
+### Spring AOP框架基于注解方式实现
+
+在前面我们自己实现了静态代理和动态代理，但其实在工作中，我们都是使用spring内置的AOP框架完成代理
+
+#### 导入对应的包
+
+```xml
+<!-- spring-aspects会帮我们传递过来aspectjweaver -->
+<dependency>
+    <groupId>org.springframework</groupId>
+    <artifactId>spring-aop</artifactId>
+    <version>6.0.6</version>
+</dependency>
+
+<dependency>
+    <groupId>org.springframework</groupId>
+    <artifactId>spring-aspects</artifactId>
+    <version>6.0.6</version>
+</dependency>
+```
+
+#### 准备接口
+
+```java
+public interface Calculator {
+    
+    int add(int i, int j);
+    
+    int sub(int i, int j);
+    
+    int mul(int i, int j);
+    
+    int div(int i, int j);
+    
+}
+```
+
+####  实现类
+
+```java
+package com.atguigu.proxy;
+/**
+ * 实现计算接口,单纯添加 + - * / 实现! 掺杂其他功能!
+ */
+@Component
+public class CalculatorPureImpl implements Calculator {
+    
+    @Override
+    public int add(int i, int j) {
+    
+        int result = i + j;
+    
+        return result;
+    }
+    
+    @Override
+    public int sub(int i, int j) {
+    
+        int result = i - j;
+    
+        return result;
+    }
+    
+    @Override
+    public int mul(int i, int j) {
+    
+        int result = i * j;
+    
+        return result;
+    }
+    
+    @Override
+    public int div(int i, int j) {
+    
+        int result = i / j;
+    
+        return result;
+    }
+}
+```
+
+#### 声明切片类
+
+```java
+package com.atguigu.advice;
+
+import org.aspectj.lang.annotation.*;
+import org.springframework.stereotype.Component;
+
+// @Aspect表示这个类是一个切面类
+@Aspect
+// @Component注解保证这个切面类能够放入IOC容器
+@Component
+public class LogAspect {
+        
+    // @Before注解：声明当前方法是前置通知方法
+    // value属性：指定切入点表达式，由切入点表达式控制当前通知方法要作用在哪一个目标方法上
+    @Before(value = "execution(public int com.atguigu.proxy.CalculatorPureImpl.add(int,int))")
+    public void printLogBeforeCore() {
+        System.out.println("[AOP前置通知] 方法开始了");
+    }
+    
+    @AfterReturning(value = "execution(public int com.atguigu.proxy.CalculatorPureImpl.add(int,int))")
+    public void printLogAfterSuccess() {
+        System.out.println("[AOP返回通知] 方法成功返回了");
+    }
+    
+    @AfterThrowing(value = "execution(public int com.atguigu.proxy.CalculatorPureImpl.add(int,int))")
+    public void printLogAfterException() {
+        System.out.println("[AOP异常通知] 方法抛异常了");
+    }
+    
+    @After(value = "execution(public int com.atguigu.proxy.CalculatorPureImpl.add(int,int))")
+    public void printLogFinallyEnd() {
+        System.out.println("[AOP后置通知] 方法最终结束了");
+    }
+    
+}
+```
+
+#### 配置类
+
+```java
+@Configuration
+@ComponentScan(value = "com.itguigu")
+@EnableAspectJAutoProxy // 开启aspect注解 等同于<aop:aspectj-autoproxy></aop:aspectj-autoproxy>
+public class JavaConfig {
+
+}
+```
+
+#### 测试类
+
+```java
+//@SpringJUnitConfig(locations = "classpath:spring-aop.xml")
+@SpringJUnitConfig(value = {MyConfig.class})
+public class AopTest {
+
+    @Autowired
+    private Calculator calculator;
+
+    @Test
+    public void testCalculator(){
+        calculator.add(1,1);
+    }
+}
+```
+
+#### 结果
+
+```
+[AOP前置通知] 方法开始了
+[AOP返回通知] 方法成功返回了
+[AOP后置通知] 方法最终结束了
+```
+
+### 获取通知细节
+
+```java
+// @Before注解标记前置通知方法
+// value属性：切入点表达式，告诉Spring当前通知方法要套用到哪个目标方法上
+// 在前置通知方法形参位置声明一个JoinPoint类型的参数，Spring就会将这个对象传入
+// 根据JoinPoint对象就可以获取目标方法名称、实际参数列表
+@Before(value = "execution(public int com.atguigu.aop.api.Calculator.add(int,int))")
+public void printLogBeforeCore(JoinPoint joinPoint) {
+    
+    // 1.通过JoinPoint对象获取目标方法签名对象
+    // 方法的签名：一个方法的全部声明信息
+    Signature signature = joinPoint.getSignature();
+    
+    // 2.通过方法的签名对象获取目标方法的详细信息
+    String methodName = signature.getName();
+    System.out.println("methodName = " + methodName);
+    
+    int modifiers = signature.getModifiers();
+    System.out.println("modifiers = " + modifiers);
+    
+    String declaringTypeName = signature.getDeclaringTypeName();
+    System.out.println("declaringTypeName = " + declaringTypeName);
+    
+    // 3.通过JoinPoint对象获取外界调用目标方法时传入的实参列表
+    Object[] args = joinPoint.getArgs();
+    
+    // 4.由于数组直接打印看不到具体数据，所以转换为List集合
+    List<Object> argList = Arrays.asList(args);
+    
+    System.out.println("[AOP前置通知] " + methodName + "方法开始了，参数列表：" + argList);
+}
+```
+
+### 方法返回值
+
+在返回通知中，通过**@AfterReturning**注解的returning属性获取目标方法的返回值！
+
+```Java
+// @AfterReturning注解标记返回通知方法
+// 在返回通知中获取目标方法返回值分两步：
+// 第一步：在@AfterReturning注解中通过returning属性设置一个名称
+// 第二步：使用returning属性设置的名称在通知方法中声明一个对应的形参
+@AfterReturning(
+        value = "execution(public int com.atguigu.aop.api.Calculator.add(int,int))",
+        returning = "targetMethodReturnValue"
+)
+public void printLogAfterCoreSuccess(JoinPoint joinPoint, Object targetMethodReturnValue) {
+    
+    String methodName = joinPoint.getSignature().getName();
+    
+    System.out.println("[AOP返回通知] "+methodName+"方法成功结束了，返回值是：" + targetMethodReturnValue);
+}
+```
+
+### 异常对象捕捉
+
+在异常通知中，通过@AfterThrowing注解的throwing属性获取目标方法抛出的异常对象
+
+```Java
+// @AfterThrowing注解标记异常通知方法
+// 在异常通知中获取目标方法抛出的异常分两步：
+// 第一步：在@AfterThrowing注解中声明一个throwing属性设定形参名称
+// 第二步：使用throwing属性指定的名称在通知方法声明形参，Spring会将目标方法抛出的异常对象从这里传给我们
+@AfterThrowing(
+        value = "execution(public int com.atguigu.aop.api.Calculator.add(int,int))",
+        throwing = "targetMethodException"
+)
+public void printLogAfterCoreException(JoinPoint joinPoint, Throwable targetMethodException) {
+    
+    String methodName = joinPoint.getSignature().getName();
+    
+    System.out.println("[AOP异常通知] "+methodName+"方法抛异常了，异常类型是：" + targetMethodException.getClass().getName());
+}
+```
+
+### 切点表达式语法
+
+![切点表达式语法](./assets/切点表达式语法.png)
+
+```
+ /** 1.查询某包某类下，访问修饰符是公有，返回值是int的全部方法
+     * public int xx.xx.jj.*(..)
+     * 2.查询某包下类中第一个参数是String的方法
+     *  * xx.xx.jj.*(String..)
+     * 3.查询全部包下，无参数的方法！
+     *  *.*..*.*()
+     * 4.查询com包下，以int参数类型结尾的方法
+     *  * com..*.*(..int)
+     * 5.查询指定包下，Service开头类的私有返回值int的无参数方法
+     *  private int xx.xx.Service*.*()
+  */
+```
+
+### 重用切点表达式
+
+在之前我们都是要写"com.xx.xx"这些复杂的切点表达式，如果类的位置或名字发生变化，我们都必须修改这些表达式，因此我们可以统一将切点表达式封装起来，便于复用
+
+下面就是将切点表达式封装起来的类
+
+```java
+@Component
+public class MyPointCut {
+
+    @Pointcut("execution(* com.itguigu.service.impl.*.*(..))")
+    public void pc() {
+
+    }
+
+    @Pointcut("execution(* com..impl.*.*(..))")
+    public void myPc(){
+
+    }
+
+}
+```
+
+在别的位置引用
+
+```java
+@Component
+@Aspect
+public class TxAdvice {
+
+    @Before("com.itguigu.pointcut.MyPointCut.pc()")
+    public void begin(){
+        System.out.println("begin");
+    }
+
+    @AfterReturning("com.itguigu.pointcut.MyPointCut.pc()")
+    public void commit(){
+        System.out.println("commit");
+    }
+
+    @AfterThrowing("com.itguigu.pointcut.MyPointCut.pc()")
+    public void rollback(){
+        System.out.println("rollback");
+    }
+}
+```
+
+### 环绕通知
+
+环绕通知其实就是在一个方法里面实现上面的四种通知的所有功能
+
+```java
+ /**
+     * 环绕通知需要通知中目标方法的执行
+     * @return
+     */
+    @Around("com.itguigu.pointcut.MyPointCut.pc()")
+    public Object transaction(ProceedingJoinPoint joinPoint) throws Throwable {
+
+        // 保证目标方法
+        Object[] args = joinPoint.getArgs();
+        Object result = null;
+        try {
+            // 增强代码
+            System.out.println("开启事务");
+            result = joinPoint.proceed(args);
+            System.out.println("结束事务");
+        } catch (Throwable e) {
+            System.out.println("事务回滚");
+            throw new Throwable();
+        } finally {
+
+        }
+
+        return result;
+    }  
+}
+```
+
+### 切片优先级设置
+
+```java
+@Order(10)  // 指定优先级的值，值越小，优先级越高
+```
+
+### CGLib动态代理生效
+
+spring默认使用JDK代理，如果没有写接口，则使用CGLib代理
+
