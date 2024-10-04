@@ -18,6 +18,8 @@
         <module>spring-test-annotation-08</module>
         <module>spring-aop-annotation-09</module>
         <module>spring-aop-annotation-10</module>
+        <module>spring-tx-annotation-12</module>
+        <module>spring-tx-annotation-13</module>
     </modules>
 
     <properties>
@@ -85,6 +87,12 @@
         <dependency>
             <groupId>org.springframework</groupId>
             <artifactId>spring-aspects</artifactId>
+            <version>6.1.12</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-tx</artifactId>
             <version>6.1.12</version>
         </dependency>
 

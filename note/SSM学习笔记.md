@@ -1775,3 +1775,597 @@ public class TxAdvice {
 
 spring默认使用JDK代理，如果没有写接口，则使用CGLib代理
 
+## Spring声明式事务
+
+在进行数据库操作时我们很多时候都会依赖于事务，尤其是在报错时数据的回滚操作
+
+最简单的事务代码
+
+```java
+Connection conn = ...;
+  
+try {
+    // 开启事务：关闭事务的自动提交
+    conn.setAutoCommit(false);
+    // 核心操作
+    // 业务代码
+    // 提交事务
+    conn.commit();
+  
+}catch(Exception e){
+  
+    // 回滚事务
+    conn.rollBack();
+  
+}finally{
+  
+    // 释放数据库连接
+    conn.close();
+  
+}
+```
+
+虽然确实可以这么编写，但是太麻烦了，我们完全可以通过spring实现事务管理
+
+### 声明式事务
+
+声明式事务是指使用注解或 XML 配置的方式来控制事务的提交和回滚。
+
+开发者只需要添加配置即可， 具体事务的实现由第三方框架实现，避免我们直接进行事务操作！
+
+使用声明式事务可以将事务的控制和业务逻辑分离开来，提高代码的可读性和可维护性。
+
+区别：
+
+- 编程式事务需要手动编写代码来管理事务
+- 而声明式事务可以通过配置文件或注解来控制事务。
+
+例如，关于数据库的连接有jdbc，Hibernate/Jpa等，不同的平台实现数据库连接可能有所差别，而声明式事务就相当于插槽，可以帮我们解决这个问题
+
+### 准备工作
+
+#### xml包
+
+```xml
+<dependency>
+    <groupId>org.springframework</groupId>
+    <artifactId>spring-tx</artifactId>
+    <version>6.1.12</version>
+</dependency>
+```
+
+#### service
+
+```java
+@Service
+public class StudentService {
+
+    @Autowired
+    private StudentDao studentDao;
+
+    /**
+     * 添加事务
+     *
+     * @Transactional
+     */
+
+    @Transactional
+    public void changeInfo() {
+        studentDao.updateAgeById(88, 1);
+        System.out.println("-----------");
+        studentDao.updateNameById("test1", 2);
+    }
+}
+```
+
+#### Dao
+
+```java
+@Repository
+public class StudentDao {
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
+
+    public void updateNameById(String name,Integer id){
+        String sql = "update students set name = ? where id = ? ;";
+        int rows = jdbcTemplate.update(sql, name, id);
+    }
+
+    public void updateAgeById(Integer age,Integer id){
+        String sql = "update students set age = ? where id = ? ;";
+        jdbcTemplate.update(sql,age,id);
+    }
+}
+```
+
+#### JavaConfig
+
+```java
+@Configuration
+@ComponentScan("com.itguigu")
+@PropertySource("classpath:jdbc.properties")
+@EnableTransactionManagement // 开启事务注解的支持
+public class JavaConfig {
+    @Value("${itguigu.driver}")
+    private String driverClassName;
+    @Value("${itguigu.url}")
+    private String jdbcUrl;
+    @Value("${itguigu.username}")
+    private String username;
+    @Value("${itguigu.password}")
+    private String password;
+
+
+    // druid连接池
+    @Bean
+    public DataSource getDataSource() {
+        DruidDataSource druidDataSource = new DruidDataSource();
+        druidDataSource.setDriverClassName(driverClassName);
+        druidDataSource.setUrl(jdbcUrl);
+        druidDataSource.setUsername(username);
+        druidDataSource.setPassword(password);
+        return druidDataSource;
+    }
+
+    @Bean
+    public JdbcTemplate getJdbcTemplate(DataSource dataSource) {
+        JdbcTemplate jdbcTemplate = new JdbcTemplate();
+        jdbcTemplate.setDataSource(dataSource);
+        return jdbcTemplate;
+    }
+}
+```
+
+#### 测试类
+
+```java
+@SpringJUnitConfig(JavaConfig.class)
+public class SpringTxTest {
+
+    @Autowired
+    private StudentService studentService;
+
+    @Test
+    public void test(){
+        studentService.changeInfo();
+    }
+}
+```
+
+上述代码是修改id为1的姓名为test
+
+### 添加事务
+
+使用`TransactionManager`类，同时添加我们的`dataSource`
+
+```java
+@Bean
+public TransactionManager getTransactionManager(DataSource dataSource) {
+    // 内部要进行事务的操作，基于的连接池
+    DataSourceTransactionManager dataSourceTransactionManager = new DataSourceTransactionManager();
+    // 需要连接池对象
+    dataSourceTransactionManager.setDataSource(dataSource);
+    return dataSourceTransactionManager;
+}
+```
+
+使用`@EnableTransactionManagement`开启事务注解的支持
+
+在应用层添加`@Transactional`调用事务，这里令i进行错误的运算，会自动调用事务进行数据库的回滚操作
+
+```java
+@Transactional
+public void changeInfo() {
+    studentDao.updateAgeById(88, 1);
+    int i = 1 / 0;
+    System.out.println("-----------");
+    studentDao.updateNameById("test2", 2);
+}
+```
+
+## MyBatis
+
+### 简介
+
+MyBatis 是一款优秀的持久层框架，它支持自定义 SQL、存储过程以及高级映射。MyBatis 免除了几乎所有的 JDBC 代码以及设置参数和获取结果集的工作。MyBatis 可以通过简单的 XML 或注解来配置和映射原始类型、接口和 Java POJO（Plain Old Java Objects，普通老式 Java 对象）为数据库中的记录。
+
+[中文官网](https://mybatis.p2hp.com/index.html)
+
+虽然mybatis支持xml和注解两种方式配置，不过一般推荐使用xml文件的方式配置
+
+### 快速上手
+
+#### 数据库准备
+
+```sql
+CREATE DATABASE `mybatis-example`;
+
+USE `mybatis-example`;
+
+CREATE TABLE `t_emp`(
+  emp_id INT AUTO_INCREMENT,
+  emp_name CHAR(100),
+  emp_salary DOUBLE(10,5),
+  PRIMARY KEY(emp_id)
+);
+
+INSERT INTO `t_emp`(emp_name,emp_salary) VALUES("tom",200.33);
+INSERT INTO `t_emp`(emp_name,emp_salary) VALUES("jerry",666.66);
+INSERT INTO `t_emp`(emp_name,emp_salary) VALUES("andy",777.77);
+```
+
+#### 依赖导入
+
+```xml
+<dependencies>
+  <!-- mybatis依赖 -->
+  <dependency>
+      <groupId>org.mybatis</groupId>
+      <artifactId>mybatis</artifactId>
+      <version>3.5.11</version>
+  </dependency>
+
+  <!-- MySQL驱动 mybatis底层依赖jdbc驱动实现,本次不需要导入连接池,mybatis自带! -->
+  <dependency>
+      <groupId>mysql</groupId>
+      <artifactId>mysql-connector-java</artifactId>
+      <version>8.0.25</version>
+  </dependency>
+
+  <!--junit5测试-->
+  <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter-api</artifactId>
+      <version>5.3.1</version>
+  </dependency>
+</dependencies>
+```
+
+#### 准备实体类
+
+pojo/Employee.java
+
+```java
+package com.itguigu.pojo;
+
+public class Employee {
+    private Integer empId;
+
+    private String empName;
+
+    private Double empSalary;
+
+    //getter | setter
+
+    public String getEmpName() {
+        return empName;
+    }
+
+    public Double getEmpSalary() {
+        return empSalary;
+    }
+
+    public Integer getEmpId() {
+        return empId;
+    }
+
+    public void setEmpId(Integer empId) {
+        this.empId = empId;
+    }
+
+    public void setEmpName(String empName) {
+        this.empName = empName;
+    }
+
+    public void setEmpSalary(Double empSalary) {
+        this.empSalary = empSalary;
+    }
+
+    @Override
+    public String toString() {
+        return "Employee{" +
+                "empId=" + empId +
+                ", empName='" + empName + '\'' +
+                ", empSalary=" + empSalary +
+                '}';
+    }
+}
+
+```
+
+#### 定义mapper接口
+
+其实这里的`mapper`相当于以前的`Dao`,但是在mybatis中，只需要定义接口，不需要具体的实现类
+
+```java
+package com.atguigu.mapper;
+
+import com.atguigu.pojo.Employee;
+
+/**
+ * t_emp表对应数据库SQL语句映射接口!
+ *    接口只规定方法,参数和返回值!
+ *    mapper.xml中编写具体SQL语句!
+ */
+public interface EmployeeMapper {
+
+    /**
+     * 根据员工id查询员工数据方法
+     * @param empId  员工id
+     * @return 员工实体对象
+     */
+    Employee selectEmployee(Integer empId);
+    
+}
+```
+
+#### 编写mapper.xml文件
+
+`<mapper namespace="com.atguigu.mapper.EmployeeMapper">`其中`namespace`是接口的全限定符，例如之前我们定义过mapper的接口类，那么这里就写那个类的全限定符
+
+```xml
+    <select id="selectEmployee" resultType="com.atguigu.pojo.Employee">
+        <!-- #{empId}代表动态传入的参数,并且进行赋值!后面详细讲解 -->
+        select emp_id empId,emp_name empName, emp_salary empSalary from 
+           t_emp where emp_id = #{empId}
+    </select>
+```
+
+对于增删改查，分别有`<insert>`,`<delete>`,`<update>`,`<select>`四种标签，你要执行相应的业务就使用相对应的标签，其中id是接口里面定义的方法名，resultType是返回值的数据类型，这里返回的是pojo里面定义的类的数据类型，在标签里面编写相对应的sql语句即可，后面会介绍详细的用法
+
+```xml
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!-- namespace等于mapper接口类的全限定名,这样实现对应 -->
+<mapper namespace="com.atguigu.mapper.EmployeeMapper">
+    
+    <!-- 查询使用 select标签
+            id = 方法名
+            resultType = 返回值类型
+            标签内编写SQL语句
+     -->
+    <select id="selectEmployee" resultType="com.atguigu.pojo.Employee">
+        <!-- #{empId}代表动态传入的参数,并且进行赋值!后面详细讲解 -->
+        select emp_id empId,emp_name empName, emp_salary empSalary from 
+           t_emp where emp_id = #{empId}
+    </select>
+</mapper>
+```
+
+#### 准备mybatis配置文件
+
+mybatis框架配置文件： 数据库连接信息，性能配置，mapper.xml配置等！
+
+习惯上命名为 mybatis-config.xml，这个文件名仅仅只是建议，并非强制要求。将来整合 Spring 之后，这个配置文件可以省略，所以大家操作时可以直接复制、粘贴。
+
+```xml
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE configuration
+  PUBLIC "-//mybatis.org//DTD Config 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-config.dtd">
+<configuration>
+
+  <!-- environments表示配置Mybatis的开发环境，可以配置多个环境，在众多具体环境中，使用default属性指定实际运行时使用的环境。default属性的取值是environment标签的id属性的值。 -->
+  <environments default="development">
+    <!-- environment表示配置Mybatis的一个具体的环境 -->
+    <environment id="development">
+      <!-- Mybatis的内置的事务管理器 -->
+      <transactionManager type="JDBC"/>
+      <!-- 配置数据源 -->
+      <dataSource type="POOLED">
+        <!-- 建立数据库连接的具体信息 -->
+        <property name="driver" value="com.mysql.cj.jdbc.Driver"/>
+        <property name="url" value="jdbc:mysql://localhost:3306/mybatis-example"/>
+        <property name="username" value="root"/>
+        <property name="password" value="root"/>
+      </dataSource>
+    </environment>
+  </environments>
+
+  <mappers>
+    <!-- Mapper注册：指定Mybatis映射文件的具体位置 -->
+    <!-- mapper标签：配置一个具体的Mapper映射文件 -->
+    <!-- resource属性：指定Mapper映射文件的实际存储位置，这里需要使用一个以类路径根目录为基准的相对路径 -->
+    <!--    对Maven工程的目录结构来说，resources目录下的内容会直接放入类路径，所以这里我们可以以resources目录为基准 -->
+    <mapper resource="mappers/EmployeeMapper.xml"/>
+  </mappers>
+
+</configuration>
+```
+
+#### 测试类
+
+这个调用代码确实有些复杂，但是在学springBoot之前只能先记住，了解并记住即可
+
+注意！`Resources`导入的是Apache的包，不要导错了
+
+```java
+/**
+ * projectName: com.atguigu.test
+ *
+ * description: 测试类
+ */
+public class MyBatisTest {
+
+    @Test
+    public void testSelectEmployee() throws IOException {
+
+        // 1.创建SqlSessionFactory对象
+        // ①声明Mybatis全局配置文件的路径
+        String mybatisConfigFilePath = "mybatis-config.xml";
+
+        // ②以输入流的形式加载Mybatis配置文件
+        InputStream inputStream = Resources.getResourceAsStream(mybatisConfigFilePath);
+
+        // ③基于读取Mybatis配置文件的输入流创建SqlSessionFactory对象
+        SqlSessionFactory sessionFactory = new SqlSessionFactoryBuilder().build(inputStream);
+
+        // 2.使用SqlSessionFactory对象开启一个会话
+        SqlSession session = sessionFactory.openSession();
+
+        // 3.根据EmployeeMapper接口的Class对象获取Mapper接口类型的对象(动态代理技术)
+        EmployeeMapper employeeMapper = session.getMapper(EmployeeMapper.class);
+
+        // 4. 调用代理类方法既可以触发对应的SQL语句
+        Employee employee = employeeMapper.selectEmployee(1);
+
+        System.out.println("employee = " + employee);
+
+        // 4.关闭SqlSession
+        session.commit(); //提交事务 [DQL不需要,其他需要]
+        session.close(); //关闭会话
+
+    }
+}
+```
+
+### mybatis的具体使用
+
+如果我们需要对mybatis做一些基本配置，比如添加数据日志，可以去官网找到详细的配置过程
+
+这是各个标签应该存放的位置
+
+mybatis配置文件设计标签和顶层结构如下：
+
+- configuration（配置）
+    - [properties（属性）](https://mybatis.org/mybatis-3/zh/configuration.html#properties)
+    - [settings（设置）](https://mybatis.org/mybatis-3/zh/configuration.html#settings)
+    - [typeAliases（类型别名）](https://mybatis.org/mybatis-3/zh/configuration.html#typeAliases)
+    - [typeHandlers（类型处理器）](https://mybatis.org/mybatis-3/zh/configuration.html#typeHandlers)
+    - [objectFactory（对象工厂）](https://mybatis.org/mybatis-3/zh/configuration.html#objectFactory)
+    - [plugins（插件）](https://mybatis.org/mybatis-3/zh/configuration.html#plugins)
+    - [environments（环境配置）](https://mybatis.org/mybatis-3/zh/configuration.html#environments)
+        - environment（环境变量）
+            - transactionManager（事务管理器）
+            - dataSource（数据源）
+    - [databaseIdProvider（数据库厂商标识）](https://mybatis.org/mybatis-3/zh/configuration.html#databaseIdProvider)
+    - [mappers（映射器）](https://mybatis.org/mybatis-3/zh/configuration.html#mappers)
+
+这里不做详细阐述，对于添加数据日志，可以添加在`mybatis-config.xml`添加以下代码
+
+如上图所见，`<setting>`标签应该放在`<properties>`标签下面，`<typeAliases>`上面
+
+```xml
+<settings>
+  <!-- SLF4J 选择slf4j输出！ -->
+  <setting name="logImpl" value="SLF4J"/>
+</settings>
+```
+
+### #{}和${}的区别
+
+在sql语句中，我们需要动态传参，`#{}`其实就是占位符，好处是可以防止sql注入风险，但是只能传值，对于表头名和关键字不能占位
+
+`${}`就是简单的字符串拼接
+
+### 数据输入
+
+#### 单个简单类型数据
+
+##### 接口
+
+```java
+    // 根据id查询员工对象
+    Employee queryById(Integer id);
+
+    // 根据id删除员工
+    int deleteById(Integer id);
+
+    // 根据工资查询
+    List<Employee> queryBySalary(Double salary);
+```
+
+##### xml
+
+```xml
+    <select id="queryById" resultType="com.itguigu.pojo.Employee">
+        select emp_id empId, emp_name empName, emp_salary empSalary
+        from t_emp
+        where emp_id = #{id}
+    </select>
+    <delete id="deleteById">
+        delete
+        from t_emp
+        where emp_id = #{id}
+    </delete>
+    <select id="queryBySalary" resultType="com.itguigu.pojo.Employee">
+        select emp_id empId, emp_name empName, emp_salary empSalary
+        from t_emp
+        where emp_id = #{id}
+    </select>
+```
+
+这里因为只用传入一个值，因此`#{id}`这里面的值可以随便取，除了DQL语句，其他的默认返回值都是int，因此可以不用写
+
+#### 实体类类型参数
+
+##### 接口
+
+```java
+// 插入员工数据
+int insertEmp(Employee employee);
+```
+
+##### xml
+
+直接写属性名即可
+
+```xml
+<!--    传入实体对象
+key = 属性名
+-->
+<insert id="insertEmp">
+    insert into t_emp (emp_name, emp_salary)
+    values (#{empName}, #{empSalary})
+</insert>
+```
+
+#### 传入多个简单类型参数
+
+##### 接口
+
+```java
+// 根据员工姓名和工资查询
+// @Param指定value值
+Employee queryByNameAndSalary(@Param("a") String name,@Param("b") Double salary);
+```
+
+##### xml
+
+这里因为有多个参数，因此不能随意取值，这里推荐的方案是注解的方式，在接口里面参数的前面使用`@Param`注解指定value值，在xml里面就可以使用
+
+```xml
+<!--    传入多个简单类型数据
+方案一：注解制定
+方案二：mybatis默认机制-->
+<select id="queryByNameAndSalary" resultType="com.itguigu.pojo.Employee">
+    select *
+    from t_emp
+    where emp_id = #{a}
+      and emp_salary = #{b}
+</select>
+```
+
+#### 传入map类型的数据
+
+##### 接口
+
+```java
+    // 传入map数据map(name=员工名字, salary=工资)
+    // mapper接口中不允许重载
+    int insertEmpMap(Map data);
+```
+
+##### xml
+
+直接使用map里面的key作为参数传入即可
+
+```xml
+<!--    如果是map key=map的key即可-->
+<insert id="insertEmpMap">
+    insert into t_emp (emp_name, emp_salary)
+    values (#{name}, #{salary})
+</insert>
+```
