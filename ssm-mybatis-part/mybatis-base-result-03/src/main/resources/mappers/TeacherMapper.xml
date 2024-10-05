@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Config 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.itguigu.mapper.TeacherMapper">
+
+    <!--    期望非子增长的主键交给mybatis维护
+    order="BEFORE" resultType="" keyProperty=""
+    order 之前还是之后执行
+    resultType 返回值类型
+    keyProperty 查询结果给哪个值赋值
+    -->
+    <insert id="insertTeacher">
+        <selectKey order="BEFORE" resultType="string" keyProperty="tId">
+            select replace(UUID(), '-', '')
+        </selectKey>
+        insert into teacher (t_id, t_name) value (#{tId}, #{tName})
+    </insert>
+
+    <!--    当列名和属性名不一致
+    1.起别名
+    2.驼峰映射
+    3.resultMap自定义映射-->
+    <select id="queryById" resultType="com.itguigu.pojo.Teacher">
+        select teacher.t_id tId, teacher.t_name tName
+        from teacher
+        where t_id = #{tId}
+    </select>
+
+</mapper>

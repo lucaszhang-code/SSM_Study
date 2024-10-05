@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Config 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.itguigu.mapper.EmployeeMapper">
+    <delete id="deleteById">
+        delete
+        from t_emp
+        where emp_id = #{id}
+    </delete>
+
+    <!--    指定resultType的写法
+    类的全限定符
+    别名简称 int double -> _int _double || Integer Double int double-->
+    <select id="queryNameById" resultType="java.lang.String">
+        select emp_name
+        from t_emp
+        where emp_id = #{id}
+    </select>
+
+    <!--    <select id="queryNameById" resultType="double">-->
+    <!--        select emp_salary-->
+    <!--        from t_emp-->
+    <!--        where emp_id = #{id}-->
+    <!--    </select>-->
+
+    <!--    返回单个自定义类类型
+    默认要求：如果是查询返回单个实体类型，要求类名和属性名返回一致
+    但是，可以进行设置，设置支持驼峰式映射
+    emp_id -> empId
+    -->
+    <select id="queryEmployeeById" resultType="com.itguigu.pojo.Employee">
+        select *
+        from t_emp
+        where emp_id = #{id}
+    </select>
+
+    <select id="selectEmpNameAndMaxSalary" resultType="map">
+        SELECT emp_name                            员工姓名,
+               emp_salary                          员工工资,
+               (SELECT AVG(emp_salary) FROM t_emp) 部门平均工资
+        FROM t_emp
+        WHERE emp_salary = (SELECT MAX(emp_salary)
+                            FROM t_emp)
+    </select>
+
+    <!--    返回的是集合，不需要指定集合类型，只需指定泛型即可-->
+    <select id="selectAll" resultType="string">
+        select t_emp.emp_name
+        from t_emp
+        where emp_salary > #{salary}
+    </select>
+
+    <!--    获取插入数据的主键
+    自增长主键回显
+    useGeneratedKeys="true" 想要数据库自动增长的主键
+    -->
+    <insert id="insertEmp" useGeneratedKeys="true" keyColumn="emp_id" keyProperty="empId">
+        insert into t_emp (emp_name, emp_salary)
+        values (#{empName}, #{empSalary})
+    </insert>
+</mapper>
