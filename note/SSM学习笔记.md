@@ -2369,3 +2369,494 @@ Employee queryByNameAndSalary(@Param("a") String name,@Param("b") Double salary)
     values (#{name}, #{salary})
 </insert>
 ```
+
+### 数据输出
+
+#### 单个简单类型
+
+##### 接口
+
+```java
+int selectEmpCount();
+```
+
+##### xml
+
+因为查询的是数量，所以返回值为int类型
+
+```xml
+<select id="selectEmpCount" resultType="int">
+  select count(*) from t_emp
+</select>
+```
+
+#### 返回实体类对象
+
+##### 接口
+
+```java
+Employee selectEmployee(Integer empId);
+```
+
+##### xml
+
+因为我们在实体类里面的名字与数据库的表头名不一样，所以需要取别名实现映射
+
+```xml
+<!-- 编写具体的SQL语句，使用id属性唯一的标记一条SQL语句 -->
+<!-- resultType属性：指定封装查询结果的Java实体类的全类名 -->
+<select id="selectEmployee" resultType="com.atguigu.mybatis.entity.Employee">
+
+  <!-- Mybatis负责把SQL语句中的#{}部分替换成“?”占位符 -->
+  <!-- 给每一个字段设置一个别名，让别名和Java实体类中属性名一致 -->
+  select emp_id empId,emp_name empName,emp_salary empSalary from t_emp where emp_id=#{maomi}
+
+</select>
+```
+
+当然，很多时候，因为Java遵循驼峰命名规则，数据库遵循蛇形（xx_xx）的命名规则，我们可以在xml'中进行配置，无需自己取别名，与实体类对应
+
+```xml
+<!-- 在全局范围内对Mybatis进行配置 -->
+<settings>
+
+  <!-- 具体配置 -->
+  <!-- 从org.apache.ibatis.session.Configuration类中可以查看能使用的配置项 -->
+  <!-- 将mapUnderscoreToCamelCase属性配置为true，表示开启自动映射驼峰式命名规则 -->
+  <!-- 规则要求数据库表字段命名方式：单词_单词 -->
+  <!-- 规则要求Java实体类属性名命名方式：首字母小写的驼峰式命名 -->
+  <setting name="mapUnderscoreToCamelCase" value="true"/>
+
+</settings>
+```
+
+#### 返回map类型
+
+##### 接口
+
+```java
+Map<String,Object> selectEmpNameAndMaxSalary();
+```
+
+##### xml
+
+key = 列名
+
+value = 列数据
+
+```xml
+<!-- Map<String,Object> selectEmpNameAndMaxSalary(); -->
+<!-- 返回工资最高的员工的姓名和他的工资 -->
+<select id="selectEmpNameAndMaxSalary" resultType="map">
+  SELECT
+    emp_name 员工姓名,
+    emp_salary 员工工资,
+    (SELECT AVG(emp_salary) FROM t_emp) 部门平均工资
+  FROM t_emp WHERE emp_salary=(
+    SELECT MAX(emp_salary) FROM t_emp
+  )
+</select>
+```
+
+#### 返回List类型
+
+##### 接口
+
+```xml
+List<Employee> selectAll();
+```
+
+##### xml
+
+```xml
+<!-- List<Employee> selectAll(); -->
+<select id="selectAll" resultType="com.atguigu.mybatis.entity.Employee">
+  select emp_id empId,emp_name empName,emp_salary empSalary
+  from t_emp
+</select>
+```
+
+#### 返回主键值
+
+##### 自增长主键值
+
+###### 接口
+
+```java
+int insertEmployee(Employee employee);
+```
+
+###### xml
+
+这里的`emp_id`是自增的主键，因此不需要传入数据，如果需要记录主键，设置`useGeneratedKeys="true"`即可
+
+`keyProperty`会将获取的主键值赋值给实体类的属性，直接读取`empId`的值即可
+
+注意！只有执行了次sql语句才能获取最新主键值，不然默认`empId = null`
+
+```xml
+<!-- int insertEmployee(Employee employee); -->
+<!-- useGeneratedKeys属性字面意思就是“使用生成的主键” -->
+<!-- keyProperty属性可以指定主键在实体类对象中对应的属性名，Mybatis会将拿到的主键值存入这个属性 -->
+<insert id="insertEmployee" useGeneratedKeys="true" keyProperty="empId">
+  insert into t_emp(emp_name,emp_salary)
+  values(#{empName},#{empSalary})
+</insert>
+```
+
+##### 非自增长类型主键
+
+有些时候我们的主键并不是自增长类型，因此需要我们手动传入
+
+加入数据库有`Teacher`表，其中`t_id primary_key varchar(64)` ,`t_name varchar(64)` 
+
+那么`t_id`就不是自增长属性，通常我们会使用`UUID`去设置主键值
+
+###### 接口
+
+```java
+ int insertTeacher(Teacher teacher);
+```
+
+###### xml
+
+```xml
+<insert id="insertTeacher">
+    insert into teacher (t_id, t_name) value (#{tId}, #{tName})
+</insert>
+```
+
+###### test
+
+我们也可以在代码中手动生成`UUID`，但是生成的数值里面带有`-`号，因此我们需要去除`-`，然后传入sql即可
+
+```java
+    @Test
+    public void testInsertTeacher(){
+        TeacherMapper teacherMapper = sqlSession.getMapper(com.itguigu.mapper.TeacherMapper.class);
+
+        Teacher teacher = new Teacher();
+        // 去除UUID里面的“-”号
+        String id = UUID.randomUUID().toString().replaceAll("-", "");
+        teacher.settId(id);
+        teacher.settName("朱朱");
+        int i = teacherMapper.insertTeacher(teacher);
+        System.out.println("获取id值: " + teacher.gettId());
+        System.out.println(i);
+        sqlSession.commit();
+        sqlSession.close();
+    }
+```
+
+当然mybatis也为我们提供了UUID的实现方法
+
+```xml
+    <insert id="insertTeacher">
+        <selectKey order="BEFORE" resultType="string" keyProperty="tId">
+            select replace(UUID(), '-', '')
+        </selectKey>
+        insert into teacher (t_id, t_name) value (#{tId}, #{tName})
+    </insert>
+```
+
+在上例中，我们定义了一个 `insertUser` 的插入语句来将 `User` 对象插入到 `user` 表中。我们使用 `selectKey` 来查询 UUID 并设置到 `id` 字段中。
+
+通过 `keyProperty` 属性来指定查询到的 UUID 赋值给对象中的 `id` 属性，而 `resultType` 属性指定了 UUID 的类型为 `java.lang.String`。
+
+需要注意的是，我们将 `selectKey` 放在了插入语句的前面，这是因为 MySQL 在 `insert` 语句中只支持一个 `select` 子句，而 `selectKey` 中查询 UUID 的语句就是一个 `select` 子句，因此我们需要将其放在前面。
+
+最后，在将 `User` 对象插入到 `user` 表中时，我们直接使用对象中的 `id` 属性来插入主键值。
+
+使用这种方式，我们可以方便地插入 UUID 作为字符串类型主键。当然，还有其他插入方式可以使用，如使用Java代码生成UUID并在类中显式设置值等。需要根据具体应用场景和需求选择合适的插入方式。
+
+#### 实体类属性和数据库字段对应
+
+前面我们使用了
+
+1.起别名
+2.驼峰映射
+
+两种方式，其实我们也可以使用`ResultMap`自定义别名
+
+`column`是数据库的字段名，`property`是实体类的名称
+
+```xml
+<!-- 专门声明一个resultMap设定column到property之间的对应关系 -->
+<resultMap id="selectEmployeeByRMResultMap" type="com.atguigu.mybatis.entity.Employee">
+
+  <!-- 使用id标签设置主键列和主键属性之间的对应关系 -->
+  <!-- column属性用于指定字段名；property属性用于指定Java实体类属性名 -->
+  <id column="emp_id" property="empId"/>
+
+  <!-- 使用result标签设置普通字段和Java实体类属性之间的关系 -->
+  <result column="emp_name" property="empName"/>
+
+  <result column="emp_salary" property="empSalary"/>
+
+</resultMap>
+
+<!-- Employee selectEmployeeByRM(Integer empId); -->
+<select id="selectEmployeeByRM" resultMap="selectEmployeeByRMResultMap">
+
+  select emp_id,emp_name,emp_salary from t_emp where emp_id=#{empId}
+
+</select>
+```
+
+### curd练习
+
+#### 准备数据库
+
+```sql
+CREATE TABLE `user` (
+  `id` INT(11) NOT NULL AUTO_INCREMENT,
+  `username` VARCHAR(50) NOT NULL,
+  `password` VARCHAR(50) NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=INNODB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8;
+
+```
+
+#### 准备实体类
+
+安装`lombok`包
+
+```xml
+<dependency>
+    <groupId>org.projectlombok</groupId>
+    <artifactId>lombok</artifactId>
+    <version>1.18.34</version>
+</dependency>
+```
+
+使用`@Data`注解，并且IDEA需要安装lombok插件（一般都有）
+
+他可以自动实现实体类的`getter,setter,toString`等方法
+
+```java
+@Data //lombok
+public class User {
+  private Integer id;
+  private String username;
+  private String password;
+}
+```
+
+#### 定义接口
+
+```java
+public interface UserMapper {
+  
+  int insert(User user);
+
+  int update(User user);
+
+  int delete(Integer id);
+
+  User selectById(Integer id);
+
+  List<User> selectAll();
+}
+```
+
+#### Mapper文件的编写
+
+```xml
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Config 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.itguigu.mapper.UserMapper">
+
+    <insert id="insert" useGeneratedKeys="true" keyColumn="id" keyProperty="id">
+        insert into user (username, password) VALUE (#{username}, #{password})
+    </insert>
+
+    <update id="update">
+        update user
+        set username = #{userName},
+            password = #{password}
+        where id = #{id}
+    </update>
+
+    <delete id="delete">
+        delete
+        from user
+        where id = #{id}
+    </delete>
+
+    <select id="selectById" resultType="com.itguigu.pojo.User">
+        select * from user where id = #{id}
+    </select>
+    
+    <select id="selectAll" resultType="com.itguigu.pojo.User">
+        select *
+        from user
+    </select>
+</mapper>
+```
+
+#### mybatis-config.xml文件编写
+
+```xml
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE configuration
+        PUBLIC "-//mybatis.org//DTD Config 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-config.dtd">
+<configuration>
+
+    <settings>
+        <!--        开启了mybatis的日志输出-->
+        <setting name="logImpl" value="STDOUT_LOGGING"/>
+        <!--        自动开启驼峰映射-->
+        <setting name="mapUnderscoreToCamelCase" value="true"/>
+    </settings>
+
+    <!-- 定义自己类的别名-->
+
+    <!-- environments表示配置Mybatis的开发环境，可以配置多个环境，在众多具体环境中，使用default属性指定实际运行时使用的环境。default属性的取值是environment标签的id属性的值。 -->
+    <environments default="development">
+        <!-- environment表示配置Mybatis的一个具体的环境 -->
+        <environment id="development">
+            <!-- Mybatis的内置的事务管理器 -->
+            <transactionManager type="JDBC"/>
+            <!-- 配置数据源 -->
+            <!--            让mybatis帮我们维护一个连接池 | pooled-->
+            <dataSource type="POOLED">
+                <!-- 建立数据库连接的具体信息 -->
+                <property name="driver" value="com.mysql.cj.jdbc.Driver"/>
+                <property name="url" value="jdbc:mysql://localhost:3306/mybatis-example"/>
+                <property name="username" value="root"/>
+                <property name="password" value="123456"/>
+            </dataSource>
+        </environment>
+    </environments>
+
+    <mappers>
+        <!-- Mapper注册：指定Mybatis映射文件的具体位置 -->
+        <!-- mapper标签：配置一个具体的Mapper映射文件 -->
+        <!-- resource属性：指定Mapper映射文件的实际存储位置，这里需要使用一个以类路径根目录为基准的相对路径 -->
+        <!--    对Maven工程的目录结构来说，resources目录下的内容会直接放入类路径，所以这里我们可以以resources目录为基准 -->
+        <mapper resource="mappers/UserMapper.xml"></mapper>
+    </mappers>
+
+</configuration>
+```
+
+#### Test
+
+对于很多操作我们可以使用函数封装起来
+
+将此类操作封装
+
+```java
+    private SqlSession sqlSession;
+    private UserMapper userMapper;
+
+    @BeforeEach
+    public void before() throws IOException {
+        InputStream resourceAsStream = Resources.getResourceAsStream("mybatis-config.xml");
+        SqlSessionFactory build = new SqlSessionFactoryBuilder().build(resourceAsStream);
+        sqlSession = build.openSession();
+        userMapper = sqlSession.getMapper(com.itguigu.mapper.UserMapper.class);
+    }
+```
+
+` @BeforeEach`注解可以让程序执行前，先执行这个函数
+
+```java
+@AfterEach
+    public void clean(){
+        sqlSession.commit();
+        sqlSession.close();
+    }
+```
+
+`@AfterEach`注解可以让程序执行后，再执行这个函数
+
+因此我们就不需要在程序中写这行重复的代码
+
+```java
+package com.itguigu.test;
+
+import com.itguigu.mapper.UserMapper;
+import com.itguigu.pojo.User;
+import org.apache.ibatis.io.Resources;
+import org.apache.ibatis.session.SqlSession;
+import org.apache.ibatis.session.SqlSessionFactory;
+import org.apache.ibatis.session.SqlSessionFactoryBuilder;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.List;
+
+public class MyBatisTest {
+
+    private SqlSession sqlSession;
+    private UserMapper userMapper;
+
+    @BeforeEach
+    public void before() throws IOException {
+        InputStream resourceAsStream = Resources.getResourceAsStream("mybatis-config.xml");
+        SqlSessionFactory build = new SqlSessionFactoryBuilder().build(resourceAsStream);
+        sqlSession = build.openSession();
+        userMapper = sqlSession.getMapper(com.itguigu.mapper.UserMapper.class);
+    }
+
+    @AfterEach
+    public void clean(){
+        sqlSession.commit();
+        sqlSession.close();
+    }
+
+
+    @Test
+    public void testInsert() {
+        User user = new User();
+        user.setUsername("Tony");
+        user.setPassword("123456");
+        int row = userMapper.insert(user);
+        System.out.println(row);
+    }
+
+    @Test
+    public void testUpdate() {
+
+    }
+
+    @Test
+    public void testDelete() {
+        int row = userMapper.delete(1);
+        System.out.println(row);
+    }
+
+    @Test
+    public void selectBId() {
+        User user = userMapper.selectById(1);
+        System.out.println(user);
+
+    }
+
+    @Test
+    public void selectAll() {
+        List<User> users = userMapper.selectAll();
+        for (User user : users) {
+            System.out.println(user);
+        }
+    }
+}
+
+```
+
+
+
+
+
+
+
+
+
