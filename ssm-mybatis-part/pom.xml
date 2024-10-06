@@ -13,6 +13,8 @@
         <module>mybatis-base-param-input-02</module>
         <module>mybatis-base-result-03</module>
         <module>mybatis-base-crud-04</module>
+        <module>mybatis-high-multitable-05</module>
+        <module>mybatis-high-dynsql</module>
     </modules>
 
     <properties>

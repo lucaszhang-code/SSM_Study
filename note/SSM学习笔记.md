@@ -2852,11 +2852,348 @@ public class MyBatisTest {
 
 ```
 
+### MyBatis多表映射
 
+有些时候我们可能需要多张表联合查询，尤其是体现在数据一对多或多对多的情况
 
+#### 数据准备
 
+```sql
+CREATE TABLE `t_customer` (`customer_id` INT NOT NULL AUTO_INCREMENT, `customer_name` CHAR(100), PRIMARY KEY (`customer_id`) );
 
+CREATE TABLE `t_order` ( `order_id` INT NOT NULL AUTO_INCREMENT, `order_name` CHAR(100), `customer_id` INT, PRIMARY KEY (`order_id`) ); 
 
+INSERT INTO `t_customer` (`customer_name`) VALUES ('c01');
 
+INSERT INTO `t_order` (`order_name`, `customer_id`) VALUES ('o1', '1');
+INSERT INTO `t_order` (`order_name`, `customer_id`) VALUES ('o2', '1');
+INSERT INTO `t_order` (`order_name`, `customer_id`) VALUES ('o3', '1'); 
+```
 
+![多表查询顾客数据](./assets/多表查询顾客数据.png)
+
+![多表查询订单数据](./assets/多表查询订单数据.png)
+
+#### 实体类设计
+
+一个顾客对应多个订单；一个订单对应一个顾客；因此在顾客实体类包含了订单的集合；而订单类里面对应的一个顾客，所以也要包含顾客的实体类数据
+
+```java
+@Data
+public class Customer {
+
+  private Integer customerId;
+  private String customerName;
+  private List<Order> orderList;// 体现的是对多的关系
+  
+}  
+
+@Data
+public class Order {
+  private Integer orderId;
+  private String orderName;
+  private Customer customer;// 体现的是对一的关系
+  
+}  
+```
+
+#### 订单查顾客接口
+
+返回的是订单的数据和对应的顾客数据，不是只返回顾客数据
+
+```java
+public interface OrderMapper {
+    Order queryOrderById(Integer id);
+}
+```
+
+#### xml
+
+要知道多表查询的语句怎么写，返回的数据类型需要经过映射，所以使用`resultMap`，里面指定id值
+
+`<resultMap>`标签里面，` <resultMap id = "查询语句定义的resultMap值" type="实体类">`
+
+`<id column="数据库字段名" property="映射的实体类的数据名"/>` 只有主键需要使用`<id>`标签
+
+`<result column="数据库字段名" property="映射的实体类的数据名"/>` 非主键使用`<result>`标签
+
+如果实体类里面包含了别的实体类使用` <association property="在类中对一的一端进行引用时使用的属性名" javaType="类的全类名">`
+
+然后里面正常写这些标签
+
+```xml
+<mapper namespace="com.itguigu.mappers.OrderMapper">
+    <!--    自定义映射关系-->
+    <resultMap id="orderMap" type="com.itguigu.pojo.Order">
+        <!--        主键选用id标签-->
+        <id column="order_id" property="orderId"/>
+        <result column="order_name" property="orderName"/>
+        <result column="customer_id" property="customerId"/>
+
+        <!--        给对象赋值
+        property 对象属性值
+        JavaType 对象类型
+        -->
+        <association property="customer" javaType="com.itguigu.pojo.Customer">
+            <id column="customer_id" property="customerId"/>
+            <result column="customer_name" property="customerName"/>
+        </association>
+    </resultMap>
+
+    <select id="queryOrderById" resultMap="orderMap">
+        select *
+        from t_order tor
+                 join t_customer tur on tor.customer_id = tur.customer_id
+        where tor.order_id = #{id};
+    </select>
+</mapper>
+```
+
+#### 测试类
+
+```java
+    @Test
+    public void test() {
+        OrderMapper orderMapper = sqlSession.getMapper(com.itguigu.mappers.OrderMapper.class);
+        Order order = orderMapper.queryOrderById(1);
+            System.out.println(order);
+            System.out.println(order.getCustomerId());
+
+    }
+```
+
+#### 顾客查询订单接口
+
+一个顾客对应多个订单，因此使用List集合
+
+```java
+public interface CustomerMapper {
+    List<Customer> queryList();
+}
+```
+
+#### xml
+
+这里有一个变化，因为`Customer`类里面存放了`List<Order>`信息，前面我们遇见类使用`<association>`表现，而这里里面是集合，使用`<collection>`标签，其余的都一样
+
+我们没有指定哪一个顾客，因此默认查询全部顾客对应的全部订单
+
+```xml
+<mapper namespace="com.itguigu.mappers.CustomerMapper">
+
+    <!--    开启驼峰式映射，resultMap会自动映射单层的result标签，但是命名需要符合驼峰命名-->
+
+    <resultMap id="customerMap" type="com.itguigu.pojo.Customer">
+        <id column="customer_id" property="customerId"/>
+        <!--        <result column="customer_name" property="customerName"/>-->
+
+        <!--        <association property=""/>  对一属性赋值-->
+        <!--        集合属性赋值-->
+        <collection property="orderList" ofType="com.itguigu.pojo.Order">
+            <id column="order_id" property="orderId"/>
+            <!--            <result column="order_name" property="orderName"/>-->
+            <!--            <result column="customer_id" property="customerId"/>-->
+        </collection>
+    </resultMap>
+
+    <select id="queryList" resultMap="customerMap">
+        select *
+        from t_order tor
+                 join t_customer tur on tor.customer_id = tur.customer_id;
+    </select>
+</mapper>
+```
+
+#### 测试类
+
+```java
+    @Test
+    public void test1() {
+        CustomerMapper customerMapper = sqlSession.getMapper(CustomerMapper.class);
+        List<Customer> customers = customerMapper.queryList();
+        for (Customer customer : customers) {
+            System.out.println(customer);
+        }
+    }
+```
+
+### 多表映射优化
+
+我们需要一个个写数据库字段的映射关系很麻烦，但其实MyBatis有设置可以帮助我们减少工作量
+
+| setting属性         | 属性含义                                                     | 可选值              | 默认值  |
+| ------------------- | ------------------------------------------------------------ | ------------------- | ------- |
+| autoMappingBehavior | 指定 MyBatis 应如何自动映射列到字段或属性。 NONE 表示关闭自动映射；PARTIAL 只会自动映射没有定义嵌套结果映射的字段。 FULL 会自动映射任何复杂的结果集（无论是否嵌套）。 | NONE, PARTIAL, FULL | PARTIAL |
+
+我们可以将autoMappingBehavior设置为full,进行多表resultMap映射的时候，可以省略符合列和属性命名映射规则（列名=属性名，或者开启驼峰映射也可以自定映射）的result标签！
+
+```xml
+        <setting name="mapUnderscoreToCamelCase" value="true"/>
+        <!--        value为full时，会自动映射内层-->
+        <setting name="autoMappingBehavior" value="FULL"/>
+```
+
+这下我们只用写**主键**和**类或集合**标签了，但前提是数据库字段和实体类的字段具有符合要求的对应关系
+
+```xml
+<mapper namespace="com.itguigu.mappers.CustomerMapper">
+
+    <!--    开启驼峰式映射，resultMap会自动映射单层的result标签，但是命名需要符合驼峰命名-->
+
+    <resultMap id="customerMap" type="com.itguigu.pojo.Customer">
+        <id column="customer_id" property="customerId"/>
+
+        <collection property="orderList" ofType="com.itguigu.pojo.Order">
+            <id column="order_id" property="orderId"/>
+
+        </collection>
+    </resultMap>
+
+    <select id="queryList" resultMap="customerMap">
+        select *
+        from t_order tor
+                 join t_customer tur on tor.customer_id = tur.customer_id;
+    </select>
+</mapper>
+```
+
+### 多表映射总结
+
+| 关联关系 | 配置项关键词                              | 所在配置文件和具体位置            |
+| -------- | ----------------------------------------- | --------------------------------- |
+| 对一     | association标签/javaType属性/property属性 | Mapper配置文件中的resultMap标签内 |
+| 对多     | collection标签/ofType属性/property属性    | Mapper配置文件中的resultMap标签内 |
+
+### MyBatis动态语句
+
+在一些网站中，尤其是网站支持自定义筛选，可能同时会过滤多个条件，按照以外的办法，我们只能采用字符串拼接sql语句，但是使用动态语句可以很好的解决这个问题
+
+#### if和where标签
+
+```xml
+    <!--    if 判断传入的参数，判断是否添加语句
+    true进行拼接 false不拼接
+    大于和小于不推荐直接写 推荐写实体符号
+    第一个不满足，第二个满足 select * t_emp where and xxx
+    都不满足 select * from t_emp where
+
+    where标签的作用：
+    1.自动添加where标签
+    2.自动去掉多余的and和or关键字-->
+
+    <select id="query" resultType="com.itguigu.pojo.Employee">
+        select *
+        from t_emp
+        <where>
+            <if test="name != null">
+                emp_name = #{name}
+            </if>
+            <if test="salary != null and salary &gt; 100">
+                and emp_salary = #{salary};
+            </if>
+        </where>
+    </select>
+```
+
+#### set标签
+
+```XML
+<!-- void updateEmployeeDynamic(Employee employee) -->
+<update id="updateEmployeeDynamic">
+    update t_emp
+    <!-- set emp_name=#{empName},emp_salary=#{empSalary} -->
+    <!-- 使用set标签动态管理set子句，并且动态去掉两端多余的逗号 -->
+    <set>
+        <if test="empName != null">
+            emp_name=#{empName},
+        </if>
+        <if test="empSalary &lt; 3000">
+            emp_salary=#{empSalary},
+        </if>
+    </set>
+    where emp_id=#{empId}
+    <!--
+         第一种情况：所有条件都满足 SET emp_name=?, emp_salary=?
+         第二种情况：部分条件满足 SET emp_salary=?
+         第三种情况：所有条件都不满足 update t_emp where emp_id=?
+            没有set子句的update语句会导致SQL语法错误
+     -->
+</update>
+```
+
+#### choose标签
+
+你可以把它理解成switch，case语句
+
+```xml
+<!-- List<Employee> selectEmployeeByConditionByChoose(Employee employee) -->
+<select id="selectEmployeeByConditionByChoose" resultType="com.atguigu.mybatis.entity.Employee">
+    select emp_id,emp_name,emp_salary from t_emp
+    where
+    <choose>
+        <when test="empName != null">emp_name=#{empName}</when>
+        <when test="empSalary &lt; 3000">emp_salary &lt; 3000</when>
+        <otherwise>1=1</otherwise>
+    </choose>
+    
+    <!--
+     第一种情况：第一个when满足条件 where emp_name=?
+     第二种情况：第二个when满足条件 where emp_salary < 3000
+     第三种情况：两个when都不满足 where 1=1 执行了otherwise
+     -->
+</select>
+```
+
+#### foreach标签
+
+完整语句：` select * from t_emp where emp_id in (1,2,3 ...)`
+
+```xml
+    <!--    遍历的数据
+    collection="ids" | arg0 | list
+    open 遍历之前要追加的字符串
+    close 结束要加上的字符串
+    separator 每次遍历的分割符号，如果是最后一次不会加分隔号
+    item 遍历项
+    -->
+    <select id="queryBatch" resultType="com.itguigu.pojo.Employee">
+        select *
+        from t_emp
+        where emp_id in
+        <foreach collection="ids" open="(" separator="," close=")" item="id">
+            #{id}
+        </foreach>
+    </select>
+```
+
+对于insert语句的拼接
+
+完整语句：`insert into t_emp (emp_name, emp_salary) values (插入的姓名， 插入的工资)` 
+
+```xml
+  <insert id="insertBatch">
+        insert into t_emp (emp_name, emp_salary)
+        values
+        <foreach collection="list" separator="," item="employee">
+            (#{employee.empName}, #{employee.empSalary})
+        </foreach>
+    </insert>
+```
+
+update语句很难做到批量的更新，那么我们可以重复整条sql语句
+
+```xml
+    <!--    如果一个语句执行多个sql语句，需要设置允许多语句执行-->
+    <update id="updateBatch">
+        <foreach collection="employee" item="emp">
+            update t_emp set emp_name=#{emp.empName}, emp_salary = #{emp.empSalary} where emp_id = #{emp.empId}
+        </foreach>
+    </update>
+```
+
+但前提是需要再数据库连接的url地址后面加上`?allowMultiQueries=true`，比如
+
+`<property name="url" value="jdbc:mysql://localhost:3306/mybatis-example?allowMultiQueries=true"/>`
+
+要不然数据库不允许
 

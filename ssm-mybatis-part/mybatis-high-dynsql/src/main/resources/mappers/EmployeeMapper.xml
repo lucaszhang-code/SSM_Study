@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Config 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.itguigu.mappers.EmployeeMapper">
+    <!--    if 判断传入的参数，判断是否添加语句
+    true进行拼接 false不拼接
+    大于和小于不推荐直接写 推荐写实体符号
+    第一个不满足，第二个满足 select * t_emp where and xxx
+    都不满足 select * from t_emp where
+
+    where标签的作用：
+    1.自动添加where标签
+    2.自动去掉多余的and和or关键字-->
+
+    <select id="query" resultType="com.itguigu.pojo.Employee">
+        select *
+        from t_emp
+        <where>
+            <if test="name != null">
+                emp_name = #{name}
+            </if>
+            <if test="salary != null and salary &gt; 100">
+                and emp_salary = #{salary};
+            </if>
+        </where>
+    </select>
+
+    <!--    set标签自动去掉多余的逗号
+            自定添加set关键字
+            -->
+    <update id="update">
+        update t_emp
+        <set>
+            <if test="empName != null">
+                emp_name = #{empName},
+            </if>
+            <if test="empSalary != null">
+                emp_salary = #{empSalary}
+            </if>
+        </set>
+        where emp_id = #{empId}
+    </update>
+
+    <!--     根据两个条件查询，如果姓名不为空使用姓名查，如果薪水不为空，用薪水查，如果都不为空，就都查-->
+    <select id="query" resultType="com.itguigu.pojo.Employee">
+        select *
+        from t_emp
+        where
+        <choose>
+            <when test="name != null">
+                emp_name = #{name}
+            </when>
+            <when test="salary != null and salary &gt; 100">
+                and emp_salary = #{salary};
+            </when>
+        </choose>
+    </select>
+
+    <!--    遍历的数据
+    collection="ids" | arg0 | list
+    open 遍历之前要追加的字符串
+    close 结束要加上的字符串
+    separator 每次遍历的分割符号，如果是最后一次不会加分隔号
+    item 遍历项
+    -->
+    <select id="queryBatch" resultType="com.itguigu.pojo.Employee">
+        select *
+        from t_emp
+        where emp_id in
+        <foreach collection="ids" open="(" separator="," close=")" item="id">
+            #{id}
+        </foreach>
+    </select>
+
+    <delete id="deleteBatch">
+        delete t_emp
+        where emp_id in
+        <foreach collection="ids" open="(" close=")" separator="," item="id">
+            #{id}
+        </foreach>
+    </delete>
+
+    <insert id="insertBatch">
+        insert into t_emp (emp_name, emp_salary)
+        values
+        <foreach collection="list" separator="," item="employee">
+            (#{employee.empName}, #{employee.empSalary})
+        </foreach>
+    </insert>
+
+    <!--    如果一个语句执行多个sql语句，需要设置允许多语句执行-->
+    <update id="updateBatch">
+        <foreach collection="employee" item="emp">
+            update t_emp set emp_name=#{emp.empName}, emp_salary = #{emp.empSalary} where emp_id = #{emp.empId}
+        </foreach>
+    </update>
+</mapper>

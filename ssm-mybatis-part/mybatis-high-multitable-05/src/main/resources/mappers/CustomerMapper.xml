@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Config 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.itguigu.mappers.CustomerMapper">
+
+    <!--    开启驼峰式映射，resultMap会自动映射单层的result标签，但是命名需要符合驼峰命名-->
+
+    <resultMap id="customerMap" type="com.itguigu.pojo.Customer">
+        <id column="customer_id" property="customerId"/>
+
+        <collection property="orderList" ofType="com.itguigu.pojo.Order">
+            <id column="order_id" property="orderId"/>
+
+        </collection>
+    </resultMap>
+
+    <select id="queryList" resultMap="customerMap">
+        select *
+        from t_order tor
+                 join t_customer tur on tor.customer_id = tur.customer_id;
+    </select>
+</mapper>
