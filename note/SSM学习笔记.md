@@ -3197,3 +3197,463 @@ update语句很难做到批量的更新，那么我们可以重复整条sql语�
 
 要不然数据库不允许
 
+## SpringMVC
+
+Spring Web MVC是基于Servlet API构建的原始Web框架，从一开始就包含在Spring Framework中。正式名称“Spring Web MVC”来自其源模块的名称（ `spring-webmvc` ），但它通常被称为“Spring MVC”。
+
+在控制层框架历经Strust、WebWork、Strust2等诸多产品的历代更迭之后，目前业界普遍选择了SpringMVC作为Java EE项目表述层开发的**首选方案**。之所以能做到这一点，是因为SpringMVC具备如下显著优势：
+
+- **Spring 家族原生产品**，与IOC容器等基础设施无缝对接
+- 表述层各细分领域需要解决的问题**全方位覆盖**，提供**全面解决方案**
+- **代码清新简洁**，大幅度提升开发效率
+- 内部组件化程度高，可插拔式组件**即插即用**，想要什么功能配置相应组件即可
+- **性能卓著**，尤其适合现代大型、超大型互联网项目要求
+
+![](https://secure2.wostatic.cn/static/bnm9zUQo34z7FgXA9vAmfm/image.png?auth_key=1728475024-pJ7bfVFaPNkTbNXFhPiDJQ-0-689d23e42bdf596eec4f71b320803696&file_size=85984)
+
+**SpringMVC处理请求流程：**
+
+![](https://secure2.wostatic.cn/static/no1PDXU3JX5K4cecSAx5oL/image.png?auth_key=1728474913-tx11675gm3GJhmqpxuqNu-0-7399243cda77877e609bac66946097db)
+
+**SpringMVC涉及组件理解：**
+    1. DispatcherServlet :  SpringMVC提供，我们需要使用web.xml配置使其生效，它是整个流程处理的核心，所有请求都经过它的处理和分发！[ CEO ]
+    2. HandlerMapping :  SpringMVC提供，我们需要进行IoC配置使其加入IoC容器方可生效，它内部缓存handler(controller方法)和handler访问路径数据，被DispatcherServlet调用，用于查找路径对应的handler！[秘书]
+    3. HandlerAdapter : SpringMVC提供，我们需要进行IoC配置使其加入IoC容器方可生效，它可以处理请求参数和处理响应数据数据，每次DispatcherServlet都是通过handlerAdapter间接调用handler，他是handler和DispatcherServlet之间的适配器！[经理]
+    4. Handler : handler又称处理器，他是Controller类内部的方法简称，是由我们自己定义，用来接收参数，向后调用业务，最终返回响应结果！[打工人]
+    5. ViewResovler : SpringMVC提供，我们需要进行IoC配置使其加入IoC容器方可生效！视图解析器主要作用简化模版视图页面查找的，但是需要注意，前后端分离项目，后端只返回JSON数据，不返回页面，那就不需要视图解析器！所以，视图解析器，相对其他的组件不是必须的！[财务]
+
+### 快速体验
+
+我们会使用SpringMVC向特定地址发送一句话，并打印在屏幕上
+
+#### 导入依赖
+
+```xml
+    <dependencies>
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+            <version>2.17.2</version>
+        </dependency>
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <version>1.18.34</version>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-context</artifactId>
+            <version>6.1.13</version>
+        </dependency>
+        <dependency>
+            <groupId>jakarta.platform</groupId>
+            <artifactId>jakarta.jakartaee-web-api</artifactId>
+            <version>${servlet.api}</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-webmvc</artifactId>
+            <version>6.1.13</version>
+        </dependency>
+    </dependencies>
+```
+
+#### controller层
+
+```java
+package com.itguigu.controller;
+
+import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.ResponseBody;
+
+@Controller
+public class HelloController {
+    //handlers
+
+    /**
+     * handler就是controller内部的具体方法
+     * @RequestMapping("springmvc/hello") 就是用来向handlerMapping中注册的方法注解!
+     * @ResponseBody 代表向浏览器直接返回数据!
+     */
+    @RequestMapping("/springmvc/hello")
+    @ResponseBody
+    public String hello(){
+        System.out.println("HelloController.hello");
+        return "hello springmvc!!";
+    }
+}
+```
+
+#### 初始化SpringMVC
+
+```java
+package com.itguigu.config;
+
+import org.springframework.web.servlet.support.AbstractAnnotationConfigDispatcherServletInitializer;
+
+public class SpringMvcInit extends AbstractAnnotationConfigDispatcherServletInitializer {
+    /**
+     * 指定service / mapper层的配置类
+     */
+    @Override
+    protected Class<?>[] getRootConfigClasses() {
+        return new Class[0];
+    }
+
+    /**
+     * 指定springmvc的配置类
+     *
+     * @return
+     */
+    @Override
+    protected Class<?>[] getServletConfigClasses() {
+       return new Class[]{MvcConfig.class};
+    }
+
+    /**
+     * 设置dispatcherServlet的处理路径!
+     * 一般情况下为 / 代表处理所有请求!
+     */
+    @Override
+    protected String[] getServletMappings() {
+        return new String[]{"/"};
+    }
+}
+```
+
+#### config注解
+
+```java
+@Configuration
+@ComponentScan("com.itguigu.controller")
+public class MvcConfig {
+
+    @Bean
+    public RequestMappingHandlerMapping handlerMapping(){
+        return new RequestMappingHandlerMapping();
+    }
+
+    @Bean
+    public RequestMappingHandlerAdapter handlerAdapter(){
+        return new RequestMappingHandlerAdapter();
+    }
+}
+```
+
+#### 启用Tomcat（需要提前配置）
+
+获取数据
+
+![springMVC初体验](./assets/springMVC初体验.png)
+
+### SpringMVC接收数据
+
+#### 精准路径匹配
+
+在@RequestMapping注解指定 URL 地址时，不使用任何通配符，按照请求地址进行精确匹配。
+
+```Java
+@Controller
+public class UserController {
+
+    /**
+     * 精准设置访问地址 /user/login
+     */
+    @RequestMapping(value = {"/user/login"})
+    @ResponseBody
+    public String login(){
+        System.out.println("UserController.login");
+        return "login success!!";
+    }
+
+    /**
+     * 精准设置访问地址 /user/register
+     */
+    @RequestMapping(value = {"/user/register"})
+    @ResponseBody
+    public String register(){
+        System.out.println("UserController.register");
+        return "register success!!";
+    }
+}
+```
+
+在这个类里面，两个方法都使用了`/user`这个路径，我们可以将这个路径写在类上面,然后方法路径可以简写
+
+```java
+@Controller
+@RequestMapping("user")
+public class UserController {
+
+    /**
+     * 精准设置访问地址 /user/login
+     */
+    @RequestMapping("login")
+    @ResponseBody
+    public String login(){
+        System.out.println("UserController.login");
+        return "login success!!";
+    }
+
+    /**
+     * 精准设置访问地址 /user/register
+     */
+    @RequestMapping("register")
+    @ResponseBody
+    public String register(){
+        System.out.println("UserController.register");
+        return "register success!!";
+    }
+}
+```
+
+**默认情况下：@RequestMapping("/logout") 任何请求方式都可以访问**
+
+如果需要特定指定：
+
+```Java
+@Controller
+public class UserController {
+
+    /**
+     * 精准设置访问地址 /user/login
+     * method = RequestMethod.POST 可以指定单个或者多个请求方式!
+     * 注意:违背请求方式会出现405异常!
+     */
+    @RequestMapping(value = {"/user/login"} , method = RequestMethod.POST)
+    @ResponseBody
+    public String login(){
+        System.out.println("UserController.login");
+        return "login success!!";
+    }
+
+    /**
+     * 精准设置访问地址 /user/register
+     */
+    @RequestMapping(value = {"/user/register"},method = {RequestMethod.POST,RequestMethod.GET})
+    @ResponseBody
+    public String register(){
+        System.out.println("UserController.register");
+        return "register success!!";
+    }
+
+}
+```
+
+1. **进阶注解**
+
+    还有 `@RequestMapping` 的 HTTP 方法特定快捷方式变体：
+
+    - `@GetMapping`
+    - `@PostMapping`
+    - `@PutMapping`
+    - `@DeleteMapping`
+    - `@PatchMapping`
+
+```Java
+@RequestMapping(value="/login",method=RequestMethod.GET)
+||
+@GetMapping(value="/login")
+```
+
+    注意：进阶注解只能添加到handler方法上，无法添加到类上！
+
+### 接收参数
+
+传参有`param`和`json`两种传参方式，后期一般使用json方式
+
+#### param参数接收
+
+```java
+@Controller
+@RequestMapping("param")
+public class ParamController {
+
+    /**
+     * 前端请求: http://localhost:8080/param/value?name=xx&age=18
+     *
+     * 可以利用形参列表,直接接收前端传递的param参数!
+     *    要求: 参数名 = 形参名
+     *          类型相同
+     * 出现乱码正常，json接收具体解决！！
+     * @return 返回前端数据
+     */
+    @GetMapping(value="/value")
+    @ResponseBody
+    public String setupForm(String name,int age){
+        System.out.println("name = " + name + ", age = " + age);
+        return name + age;
+    }
+}
+```
+
+#### @RequestParam注解
+
+使用`@RequestParam`，param传参就必须使用value值
+
+```java
+ /**
+ * 前端请求: http://localhost:8080/param/data?name=xx&stuAge=18
+ * 
+ *  使用@RequestParam注解标记handler方法的形参
+ *  指定形参对应的请求参数@RequestParam(请求参数名称)
+ */
+@GetMapping(value="/data")
+@ResponseBody
+public Object paramForm(@RequestParam("name") String name, 
+                        @RequestParam("stuAge") int age){
+    System.out.println("name = " + name + ", age = " + age);
+    return name+age;
+}
+```
+
+我们也可以设置某些参数是否必传，或者规定一个默认值
+
+```java
+@GetMapping(value="/data")
+@ResponseBody
+public Object paramForm(@RequestParam("name") String name, 
+                        @RequestParam(value = "stuAge",required = false,defaultValue = "18") int age){
+    System.out.println("name = " + name + ", age = " + age);
+    return name+age;
+}
+```
+
+我们除了传参，也可以传入集合
+
+```java
+  /**
+   * 前端请求: http://localhost:8080/param/mul?hbs=吃&hbs=喝
+   *
+   *  一名多值,可以使用集合接收即可!但是需要使用@RequestParam注解指定
+   */
+  @GetMapping(value="/mul")
+  @ResponseBody
+  public Object mulForm(@RequestParam List<String> hbs){
+      System.out.println("hbs = " + hbs);
+      return hbs;
+  }
+```
+
+我们也可以定义实体类，通过实体对象接收
+
+```java
+@Data
+public class User {
+    @Value("Lucas")
+    private String name;
+    private int age;
+}
+// 需要setter和getter方法，这里通过lombok获取
+```
+
+```java
+@Controller
+@RequestMapping("param")
+public class ParamController {
+
+    @RequestMapping(value = "/user", method = RequestMethod.POST)
+    @ResponseBody
+    public String addUser(User user) {
+        // 在这里可以使用 user 对象的属性来接收请求参数
+        System.out.println("user = " + user);
+        return "success";
+    }
+}
+```
+
+#### 路径接收参数
+
+路径传参相比于param，他不用写key，通过一一映射的方式传参
+
+路径传递参数是一种在 URL 路径中传递参数的方式。在 RESTful 的 Web 应用程序中，经常使用路径传递参数来表示资源的唯一标识符或更复杂的表示方式。而 Spring MVC 框架提供了 `@PathVariable` 注解来处理路径传递参数。
+
+`@PathVariable` 注解允许将 URL 中的占位符映射到控制器方法中的参数。
+
+例如，如果我们想将 `/user/{id}` 路径下的 `{id}` 映射到控制器方法的一个参数中，则可以使用 `@PathVariable` 注解来实现。
+
+```java
+@Controller
+@RequestMapping("path")
+@ResponseBody
+public class PathController {
+    // 接收动态参数必须使用PathVariable
+    @RequestMapping("{account}/{password}")
+    public String login(@PathVariable String account, @PathVariable String password) {
+        System.out.println("account: " + account + " password: " + password);
+        return "account: " + account + " password: " + password;
+    }
+}
+```
+
+#### json数据接收
+
+如果用户传入的是json数据，只能使用`post`方式传递
+
+```java
+import lombok.Data;
+
+@Data
+public class Person {
+    private String name;
+    private int age;
+    private String gender;
+}
+```
+
+如果我们不做任何配置，多半会出现415，这时我们就需要安装依赖
+
+```xml
+ 		<dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+            <version>2.17.2</version>
+        </dependency>
+```
+
+配置config注解
+
+```java
+@EnableWebMvc // 给handlerAdapter配置json转换器
+@Configuration
+@ComponentScan("com.itguigu")
+public class ConfigMvc {
+
+    @Bean
+    public RequestMappingHandlerMapping requestMappingHandlerMapping() {
+        return new RequestMappingHandlerMapping();
+    }
+
+    @Bean
+    public RequestMappingHandlerAdapter handlerAdapter() {
+        return new RequestMappingHandlerAdapter();
+    }
+}
+```
+
+
+
+```java
+@Controller
+@RequestMapping("json")
+@ResponseBody
+public class JsonController {
+
+    // data->post->{name,age,gender}
+    // 前端415->不支持数据类型
+    // java原生api只支持param参数和request.getParamer("key")
+    // 1.导入json相关的处理依赖
+    // 2.handlerAdapter配置JSON转化器
+    @RequestMapping("data")
+    public String data(@RequestBody Person person) {
+        System.out.println("Person=" + person);
+        return person.toString();
+    }
+}
+```
+
+因为浏览器是无法通过搜索栏发送`post`请求，因此使用`postman`发送json请求
+
+![](./assets/postman发送json请求.png)
