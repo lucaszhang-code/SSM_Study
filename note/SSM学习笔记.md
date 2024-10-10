@@ -3657,3 +3657,204 @@ public class JsonController {
 因为浏览器是无法通过搜索栏发送`post`请求，因此使用`postman`发送json请求
 
 ![](./assets/postman发送json请求.png)
+
+#### 接收cookie数据
+
+考虑使用以下 cookie 的请求：
+
+```Java
+JSESSIONID=415A4AC178C59DACE0B2C9CA727CDD84
+```
+
+下面的示例演示如何获取 cookie 值：
+
+```Java
+@GetMapping("/demo")
+public void handle(@CookieValue("JSESSIONID") String cookie) { 
+  //...
+}
+```
+
+#### 接收请求头数据
+
+使用`@RequestHeader`注解获取请求头地址
+
+```java
+@Controller
+@RequestMapping("header")
+@ResponseBody
+public class HeaderController {
+
+    @RequestMapping("data")
+    public String data(@RequestHeader("Host") String host){
+        System.out.println("host:"+host);
+        return host;
+    }
+}
+```
+
+### 返回json数据
+
+在这里，我们同时会使用`@Controller`和`@ResponseBody`注解，可以将他们简化成`@RestController`注解
+
+```java
+@RequestMapping("json")
+@RestController // RestController = Controller + ResponseBody
+public class JsonController {
+
+    /**
+     * TODO:@ResponseBody 直接放入响应体返回,不会走视图解析器
+     * @return
+     */
+
+    // 返回单条数据
+    @GetMapping("data")
+    public User data() {
+        User user = new User();
+        user.setName("Lucas");
+        user.setAge(20);
+        return user;    // 转成json字符串
+    }
+
+    // 返回集合数据
+    @GetMapping("data1")
+    public List<User> dataList() {
+        User user = new User();
+        user.setName("Lucas");
+        user.setAge(20);
+        List<User> list = new ArrayList<>();
+        list.add(user);
+        return list;
+    }
+}
+```
+
+### RestFul开发规范
+
+RESTful（Representational State Transfer）是一种软件架构风格，用于设计网络应用程序和服务之间的通信。它是一种基于标准 HTTP 方法的简单和轻量级的通信协议，广泛应用于现代的Web服务开发。
+
+通过遵循 RESTful 架构的设计原则，可以构建出易于理解、可扩展、松耦合和可重用的 Web 服务。RESTful API 的特点是简单、清晰，并且易于使用和理解，它们使用标准的 HTTP 方法和状态码进行通信，不需要额外的协议和中间件。
+
+总而言之，RESTful 是一种基于 HTTP 和标准化的设计原则的软件架构风格，用于设计和实现可靠、可扩展和易于集成的 Web 服务和应用程序！
+
+1. **HTTP协议请求方式要求**
+
+    REST 风格主张在项目设计、开发过程中，具体的操作符合**HTTP协议定义的请求方式的语义**。
+
+| 操作     | 请求方式 |
+| -------- | -------- |
+| 查询操作 | GET      |
+| 保存操作 | POST     |
+| 删除操作 | DELETE   |
+| 更新操作 | PUT      |
+
+2. **URL路径风格要求**
+
+    REST风格下每个资源都应该有一个唯一的标识符，例如一个 URI（统一资源标识符）或者一个 URL（统一资源定位符）。资源的标识符应该能明确地说明该资源的信息，同时也应该是可被理解和解释的！
+
+    使用URL+请求方式确定具体的动作，他也是一种标准的HTTP协议请求！
+
+| 操作 | 传统风格                | REST 风格                              |
+| ---- | ----------------------- | -------------------------------------- |
+| 保存 | /CRUD/saveEmp           | URL 地址：/CRUD/emp 请求方式：POST     |
+| 删除 | /CRUD/removeEmp?empId=2 | URL 地址：/CRUD/emp/2 请求方式：DELETE |
+| 更新 | /CRUD/updateEmp         | URL 地址：/CRUD/emp 请求方式：PUT      |
+| 查询 | /CRUD/editEmp?empId=2   | URL 地址：/CRUD/emp/2 请求方式：GET    |
+
+- 总结
+
+    根据接口的具体动作，选择具体的HTTP协议请求方式
+
+    路径设计从原来携带动标识，改成名词，对应资源的唯一标识即可！
+
+#### 实战
+
+- 数据结构： User {id 唯一标识,name 用户名，age 用户年龄}
+- 功能分析
+    - 用户数据分页展示功能（条件：page 页数 默认1，size 每页数量 默认 10）
+    - 保存用户功能
+    - 根据用户id查询用户详情功能
+    - 根据用户id更新用户数据功能
+    - 根据用户id删除用户数据功能
+    - 多条件模糊查询用户功能（条件：keyword 模糊关键字，page 页数 默认1，size 每页数量 默认 10）
+
+**接口设计**
+
+|          |                  |                               |              |
+| -------- | ---------------- | ----------------------------- | ------------ |
+| 功能     | 接口和请求方式   | 请求参数                      | 返回值       |
+| 分页查询 | GET  /user       | page=1&size=10                | { 响应数据 } |
+| 用户添加 | POST /user       | { user 数据 }                 | {响应数据}   |
+| 用户详情 | GET /user/1      | 路径参数                      | {响应数据}   |
+| 用户更新 | PUT /user        | { user 更新数据}              | {响应数据}   |
+| 用户删除 | DELETE /user/1   | 路径参数                      | {响应数据}   |
+| 条件模糊 | GET /user/search | page=1&size=10&keywork=关键字 | {响应数据}   |
+
+**代码**
+
+```java
+import lombok.Data;
+
+@Data
+public class User {
+    private Integer id;
+    private String name;
+    private Integer age;
+}
+```
+
+```java
+package com.itguigu.controller;
+
+import com.itguigu.pojo.User;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+
+@RequestMapping("user")
+@RestController
+public class UserController {
+
+    @GetMapping
+    public List<User> page(@RequestParam(required = false, defaultValue = "1") int page,
+                           @RequestParam(required = false, defaultValue = "10") int size) {
+        System.out.println("page:" + page + " size:" + size);
+        return null;
+    }
+
+    @PostMapping
+    public User save(@RequestBody User user) {
+        System.out.println("user" + user);
+        return user;
+    }
+
+    @GetMapping("{id}")
+    public User detail(@PathVariable Integer id){
+        return null;
+    }
+
+    @PutMapping
+    public User update(@RequestBody User user) {
+        return null;
+    }
+
+    @DeleteMapping("{id}")
+    public User delete(@PathVariable Integer id) {
+        return null;
+    }
+
+    @GetMapping("search")
+    public List<User> search(String keyword,@RequestParam(required = false, defaultValue = "1") int page,
+                             @RequestParam(required = false, defaultValue = "10") int size) {
+        return null;
+    }
+}
+```
+
+#### 三种方式的对比
+
+| 方式     | 注解          | 参数位置    | 数据格式  | 常见HTTP方法     |
+| -------- | ------------- | ----------- | --------- | ---------------- |
+| param    | @RequestParam | URL查询参数 | key=value | GET, POST        |
+| 路径传参 | @PathVariable | URL路径中   | 占位符    | GET, PUT, DELETE |
+| JSON     | @RequestBody  | 请求体中    | JSON      | POST, PUT        |

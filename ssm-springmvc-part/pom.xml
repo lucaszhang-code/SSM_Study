@@ -11,6 +11,8 @@
     <modules>
         <module>springmvc-base-quick-01</module>
         <module>springmvc-base-input-02</module>
+        <module>springmvc-base-output-03</module>
+        <module>springmvc-base-restful-04</module>
     </modules>
 
     <properties>
