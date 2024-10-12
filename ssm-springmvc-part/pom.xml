@@ -13,6 +13,7 @@
         <module>springmvc-base-input-02</module>
         <module>springmvc-base-output-03</module>
         <module>springmvc-base-restful-04</module>
+        <module>springmvc-high-other-05</module>
     </modules>
 
     <properties>
@@ -49,6 +50,27 @@
             <groupId>org.springframework</groupId>
             <artifactId>spring-webmvc</artifactId>
             <version>6.1.13</version>
+        </dependency>
+        <!-- 校验注解 -->
+        <dependency>
+            <groupId>jakarta.platform</groupId>
+            <artifactId>jakarta.jakartaee-web-api</artifactId>
+            <version>9.1.0</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <!-- 校验注解实现-->
+        <!-- https://mvnrepository.com/artifact/org.hibernate.validator/hibernate-validator -->
+        <dependency>
+            <groupId>org.hibernate.validator</groupId>
+            <artifactId>hibernate-validator</artifactId>
+            <version>8.0.0.Final</version>
+        </dependency>
+        <!-- https://mvnrepository.com/artifact/org.hibernate.validator/hibernate-validator-annotation-processor -->
+        <dependency>
+            <groupId>org.hibernate.validator</groupId>
+            <artifactId>hibernate-validator-annotation-processor</artifactId>
+            <version>8.0.0.Final</version>
         </dependency>
     </dependencies>
 </project>

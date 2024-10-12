@@ -3858,3 +3858,342 @@ public class UserController {
 | param    | @RequestParam | URL查询参数 | key=value | GET, POST        |
 | 路径传参 | @PathVariable | URL路径中   | 占位符    | GET, PUT, DELETE |
 | JSON     | @RequestBody  | 请求体中    | JSON      | POST, PUT        |
+
+### 异常处理
+
+一般异常处理有两种方式，分别是**编程式异常处理**和**声明式异常处理**
+
+编程式异常处理就是在程序中手动添加`try-catch`捕获异常，这种方式是将异常处理代码混杂在业务代码中，导致代码可读性较差
+
+声明式处理则是将异常处理的逻辑从具体的业务逻辑中分离出来，通过配置等方式进行统一的管理和处理。一般推荐使用此方式
+
+1. 声明异常处理控制器类
+
+    异常处理控制类，统一定义异常处理handler方法！
+
+```Java
+/**
+ * projectName: com.atguigu.execptionhandler
+ * 
+ * description: 全局异常处理器,内部可以定义异常处理Handler!
+ */
+
+/**
+ * @RestControllerAdvice = @ControllerAdvice + @ResponseBody
+ * @ControllerAdvice 代表当前类的异常处理controller! 
+ */
+@RestControllerAdvice
+public class GlobalExceptionHandler {
+
+  
+}
+```
+2. 声明异常处理hander方法
+
+    异常处理handler方法和普通的handler方法参数接收和响应都一致！
+
+    只不过异常处理handler方法要映射异常，发生对应的异常会调用！
+
+    普通的handler方法要使用@RequestMapping注解映射路径，发生对应的路径调用！
+
+```Java
+/**
+ * 异常处理handler 
+ * @ExceptionHandler(HttpMessageNotReadableException.class) 
+ * 该注解标记异常处理Handler,并且指定发生异常调用该方法!
+ * 
+ * 
+ * @param e 获取异常对象!
+ * @return 返回handler处理结果!
+ */
+@ExceptionHandler(HttpMessageNotReadableException.class)
+public Object handlerJsonDateException(HttpMessageNotReadableException e){
+    return null;
+}
+
+/**
+ * 当发生空指针异常会触发此方法!
+ * @param e
+ * @return
+ */
+@ExceptionHandler(NullPointerException.class)
+public Object handlerNullException(NullPointerException e){
+    return null;
+}
+
+/**
+ * 所有异常都会触发此方法!但是如果有具体的异常处理Handler! 
+ * 具体异常处理Handler优先级更高!
+ * 例如: 发生NullPointerException异常!
+ *       会触发handlerNullException方法,不会触发handlerException方法!
+ * @param e
+ * @return
+ */
+@ExceptionHandler(Exception.class)
+public Object handlerException(Exception e){
+    return null;
+}
+```
+3. 配置文件扫描控制器类配置
+
+    确保异常处理控制类被扫描
+
+```Java
+ <!-- 扫描controller对应的包,将handler加入到ioc-->
+ @ComponentScan(basePackages = {"com.atguigu.controller",
+ "com.atguigu.exceptionhandler"})
+```
+
+### 拦截器
+
+拦截器主要用于拦截前端发来的有一些请求，比如针对未登录的用户就需要进行拦截
+
+虽然在`JavaWeb`中也有拦截器，不过SpringMVC提供的拦截器更细致，并且能在handler中进行更细致的拦截，而servlet只能进行一个全局性质的拦截
+
+1. 创建拦截器类
+
+拦截器分别有`preHandle`,`postHandle`,`afterCompletion`三类，可以在不同位置进行拦截操作
+
+```Java
+public class Process01Interceptor implements HandlerInterceptor {
+
+    // if( ! preHandler()){return;}
+    // 在处理请求的目标 handler 方法前执行
+    @Override
+    public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
+        System.out.println("request = " + request + ", response = " + response + ", handler = " + handler);
+        System.out.println("Process01Interceptor.preHandle");
+         
+        // 返回true：放行
+        // 返回false：不放行
+        return true;
+    }
+ 
+    // 在目标 handler 方法之后，handler报错不执行!
+    @Override
+    public void postHandle(HttpServletRequest request, HttpServletResponse response, Object handler, ModelAndView modelAndView) throws Exception {
+        System.out.println("request = " + request + ", response = " + response + ", handler = " + handler + ", modelAndView = " + modelAndView);
+        System.out.println("Process01Interceptor.postHandle");
+    }
+ 
+    // 渲染视图之后执行(最后),一定执行!
+    @Override
+    public void afterCompletion(HttpServletRequest request, HttpServletResponse response, Object handler, Exception ex) throws Exception {
+        System.out.println("request = " + request + ", response = " + response + ", handler = " + handler + ", ex = " + ex);
+        System.out.println("Process01Interceptor.afterCompletion");
+    }
+}
+```
+
+![](https://secure2.wostatic.cn/static/9W6TF7dUwqdv2qi4KHAkAr/image.png?auth_key=1728722606-oHnsis5mZTThDCVo8HGSMh-0-8083be709f84f223fd10bf685d9609c5)
+
+1. 修改配置类添加拦截器
+
+```Java
+@EnableWebMvc  //json数据处理,必须使用此注解,因为他会加入json处理器
+@Configuration
+@ComponentScan(basePackages = {"com.atguigu.controller","com.atguigu.exceptionhandler"}) //TODO: 进行controller扫描
+//WebMvcConfigurer springMvc进行组件配置的规范,配置组件,提供各种方法! 前期可以实现
+public class SpringMvcConfig implements WebMvcConfigurer {
+
+    //配置jsp对应的视图解析器
+    @Override
+    public void configureViewResolvers(ViewResolverRegistry registry) {
+        //快速配置jsp模板语言对应的
+        registry.jsp("/WEB-INF/views/",".jsp");
+    }
+
+    //开启静态资源处理 <mvc:default-servlet-handler/>
+    @Override
+    public void configureDefaultServletHandling(DefaultServletHandlerConfigurer configurer) {
+        configurer.enable();
+    }
+
+    //添加拦截器
+    @Override
+    public void addInterceptors(InterceptorRegistry registry) { 
+        //将拦截器添加到Springmvc环境,默认拦截所有Springmvc分发的请求
+        registry.addInterceptor(new Process01Interceptor());
+    }
+}
+
+```
+2. 配置详解
+    1. 默认拦截全部
+
+```Java
+@Override
+public void addInterceptors(InterceptorRegistry registry) {
+    //将拦截器添加到Springmvc环境,默认拦截所有Springmvc分发的请求
+    registry.addInterceptor(new Process01Interceptor());
+}
+```
+2. 精准配置
+
+```Java
+@Override
+public void addInterceptors(InterceptorRegistry registry) {
+    
+    //将拦截器添加到Springmvc环境,默认拦截所有Springmvc分发的请求
+    registry.addInterceptor(new Process01Interceptor());
+    
+    //精准匹配,设置拦截器处理指定请求 路径可以设置一个或者多个,为项目下路径即可
+    //addPathPatterns("/common/request/one") 添加拦截路径
+    //也支持 /* 和 /** 模糊路径。 * 任意一层字符串 ** 任意层 任意字符串
+    registry.addInterceptor(new Process01Interceptor()).addPathPatterns("/common/request/one","/common/request/tow");
+}
+```
+3. 排除配置
+
+```Java
+//添加拦截器
+@Override
+public void addInterceptors(InterceptorRegistry registry) {
+    
+    //将拦截器添加到Springmvc环境,默认拦截所有Springmvc分发的请求
+    registry.addInterceptor(new Process01Interceptor());
+    
+    //精准匹配,设置拦截器处理指定请求 路径可以设置一个或者多个,为项目下路径即可
+    //addPathPatterns("/common/request/one") 添加拦截路径
+    registry.addInterceptor(new Process01Interceptor()).addPathPatterns("/common/request/one","/common/request/tow");
+    
+    
+    //排除匹配,排除应该在匹配的范围内排除
+    //addPathPatterns("/common/request/one") 添加拦截路径
+    //excludePathPatterns("/common/request/tow"); 排除路径,排除应该在拦截的范围内
+    registry.addInterceptor(new Process01Interceptor())
+            .addPathPatterns("/common/request/one","/common/request/tow")
+            .excludePathPatterns("/common/request/tow");
+}
+```
+
+### 参数校验
+
+以往我们会通过代码实现前端返回过来数据的校验，但其实通过注解的方式也可以实现校验
+
+使用**JSR 303**包
+
+| 注解                       | 规则                                           |
+| -------------------------- | ---------------------------------------------- |
+| @Null                      | 标注值必须为 null                              |
+| @NotNull                   | 标注值不可为 null                              |
+| @AssertTrue                | 标注值必须为 true                              |
+| @AssertFalse               | 标注值必须为 false                             |
+| @Min(value)                | 标注值必须大于或等于 value                     |
+| @Max(value)                | 标注值必须小于或等于 value                     |
+| @DecimalMin(value)         | 标注值必须大于或等于 value                     |
+| @DecimalMax(value)         | 标注值必须小于或等于 value                     |
+| @Size(max,min)             | 标注值大小必须在 max 和 min 限定的范围内       |
+| @Digits(integer,fratction) | 标注值值必须是一个数字，且必须在可接受的范围内 |
+| @Past                      | 标注值只能用于日期型，且必须是过去的日期       |
+| @Future                    | 标注值只能用于日期型，且必须是将来的日期       |
+| @Pattern(value)            | 标注值必须符合指定的正则表达式                 |
+
+JSR 303 只是一套标准，需要提供其实现才可以使用。Hibernate Validator 是 JSR 303 的一个参考实现，除支持所有标准的校验注解外，它还支持以下的扩展注解：
+
+| 注解      | 规则                               |
+| --------- | ---------------------------------- |
+| @Email    | 标注值必须是格式正确的 Email 地址  |
+| @Length   | 标注值字符串大小必须在指定的范围内 |
+| @NotEmpty | 标注值字符串不能是空字符串         |
+| @Range    | 标注值必须在指定的范围内           |
+
+#### 具体使用
+
+**导入依赖**
+
+```xml
+<!-- 校验注解 -->
+<dependency>
+    <groupId>jakarta.platform</groupId>
+    <artifactId>jakarta.jakartaee-web-api</artifactId>
+    <version>9.1.0</version>
+    <scope>provided</scope>
+</dependency>
+        
+<!-- 校验注解实现-->        
+<!-- https://mvnrepository.com/artifact/org.hibernate.validator/hibernate-validator -->
+<dependency>
+    <groupId>org.hibernate.validator</groupId>
+    <artifactId>hibernate-validator</artifactId>
+    <version>8.0.0.Final</version>
+</dependency>
+<!-- https://mvnrepository.com/artifact/org.hibernate.validator/hibernate-validator-annotation-processor -->
+<dependency>
+    <groupId>org.hibernate.validator</groupId>
+    <artifactId>hibernate-validator-annotation-processor</artifactId>
+    <version>8.0.0.Final</version>
+</dependency>
+```
+
+**要求**
+
+| 参数     | 要求          |
+| -------- | ------------- |
+| name     | 不能为空      |
+| password | 最少6位       |
+| age      | 最小为1       |
+| email    | 符合email规则 |
+| birthday | 小于当前日期  |
+
+**pojo类**
+
+```java
+@Data
+public class User {
+    @NotBlank
+    private String name;
+    @Length(min = 6)
+    private String password;
+    @Min(1)
+    private int age;
+    @Email
+    private String email;
+    @Past
+    private Date birthday;
+}
+```
+
+**controller**
+
+使用参数校验注解必须使用`@Validated`注解
+
+```java
+@RestController
+@RequestMapping("user")
+public class UserController {
+
+    /**
+     * 实体类添加校验注解
+     * handler(@Validated实体类对象)
+     */
+    @PostMapping("register")
+    public Object register(@Validated @RequestBody User user) {
+        System.out.println("user:" + user);
+        return user;
+    }
+}
+```
+
+使用**Postman**发送请求验证即可
+
+**handler标记和绑定错误收集**
+
+```Java
+    @PostMapping("register")
+    public Object register(@Validated @RequestBody User user, BindingResult bindingResult) {
+        if (bindingResult.hasErrors()) {
+            // 有绑定错误，就不直接返回，由我们自己决定
+            Map data = new HashMap();
+            data.put("code", 400);
+            data.put("msg", "参数校验异常");
+            return data;
+        }
+        System.out.println("user:" + user);
+        return user;
+    }
+```
+
+可以自行定义错误类型，给前端返回
+
+![](./assets/参数校验.png)
