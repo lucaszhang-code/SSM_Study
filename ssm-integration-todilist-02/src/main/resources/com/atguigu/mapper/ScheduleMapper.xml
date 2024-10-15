@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Config 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.atguigu.mapper.ScheduleMapper">
+    <insert id="insert">
+        insert into schedule (title, completed) VALUE (#{title}, #{completed})
+    </insert>
+    <update id="update">
+        update schedule set title = #{title}, completed = #{completed} where id = #{id}
+    </update>
+
+    <delete id="deleteById">
+        delete from schedule where id = #{id}
+    </delete>
+
+    <select id="queryList" resultType="com.atguigu.pojo.Schedule">
+        select * from schedule
+    </select>
+</mapper>

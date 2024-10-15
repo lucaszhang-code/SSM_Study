@@ -4197,3 +4197,555 @@ public class UserController {
 可以自行定义错误类型，给前端返回
 
 ![](./assets/参数校验.png)
+
+## SpringBoot
+
+到目前为止，已经学习了多种配置Spring程序的方式。但是无论使用XML、注解、Java配置类还是他们的混合用法，你都会觉得配置文件过于复杂和繁琐，让人头疼！
+
+SpringBoot 帮我们简单、快速地创建一个独立的、生产级别的 **Spring 应用（说明：SpringBoot底层是Spring）**，大多数 SpringBoot 应用只需要编写少量配置即可快速整合 Spring 平台以及第三方技术！
+
+SpringBoot的主要目标是：
+
+- 为所有 Spring 开发提供更快速、可广泛访问的入门体验。
+- 开箱即用，设置合理的默认值，但是也可以根据需求进行适当的调整。
+- 提供一系列大型项目通用的非功能性程序（如嵌入式服务器、安全性、指标、运行检查等）。
+- 约定大于配置，基本不需要主动编写配置类、也不需要 XML 配置文件。
+
+**总结：简化开发，简化配置，简化整合，简化部署，简化监控，简化运维。**
+
+### 快速体验
+
+新建项目，导入所需的Maven插件
+
+```xml
+    <parent>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>3.3.4</version>
+    </parent>
+```
+
+```xml
+    <dependencies>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+    </dependencies>
+```
+
+**spring-boot-starter-web**这个插件不需要指定版本号，因为由于依赖传递，他的版本号是随parent
+
+编写controller层
+
+目的是在页面输出Hello Spring3
+
+```java
+@RestController
+@RequestMapping("hello")
+public class HelloController {
+
+    @GetMapping("boot")
+    public String hello() {
+        return "Hello SpringBoot 3";
+    }
+}
+```
+
+编写main方法
+
+SpringBoot自带Tomcat服务器，他的入口是在Main方法位置，因此我们要启动服务只需要配置main方法
+
+```java
+@SpringBootApplication
+// @EnableAutoConfiguration 自动加载配置类
+// @ComponentScan 默认是当前类所在的包
+public class Main {
+    public static void main(String[] args) {
+        // 创建ioc容器，加载配置 
+        2.启动内置的web服务器
+        SpringApplication.run(Main.class, args);
+    }
+}
+```
+
+启动成功
+
+![](./assets/SpringBoot快速上手.png)
+
+总结：
+
+从以上的步骤中，我们可以发现我们不再编写`Config`类，只是添加了注解，程序就能跑起来，原因是SpringBoot会自动扫描主包下（com.atguigu）的所有配置类，自动进行ioc管理
+
+### SpringBoot配置文件
+
+#### properties文件
+
+我们曾经使用过XML和Java和Properties三种文件去配置Spring项目的各种参数，比如JDBC，Druid，Mybatis等，而在SpringBoot项目中，所有的配置均可以使用**properties**和**yaml(yml)**文件进行配置
+
+SpringBoot项目最大的特点是约定大于配置，因此在一些文件的命名上面很有讲究，配置文件必须存放于**resource**文件下，并且配置文件必须命名为**application**,在配置文件中我们就可以进行相关配置
+
+```properties
+# application.properties 为统一配置文件
+# 内部包含: 固定功能的key,自定义的key
+# 此处的配置信息,我们都可以在程序中@Value等注解读取
+
+# 固定的key
+# 启动端口号
+server.port=80 
+
+# 自定义
+spring.jdbc.datasource.driverClassName=com.mysql.cj.jdbc.driver
+spring.jdbc.datasource.url=jdbc:mysql:///springboot_01
+spring.jdbc.datasource.username=root
+spring.jdbc.datasource.password=root
+```
+
+在外部也可以读取配置文件的内容
+
+```java
+package com.atguigu.properties;
+
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
+
+@Component
+public class DataSourceProperties {
+
+    @Value("${spring.jdbc.datasource.driverClassName}")
+    private String driverClassName;
+
+    @Value("${spring.jdbc.datasource.url}")
+    private String url;
+
+    @Value("${spring.jdbc.datasource.username}")
+    private String username;
+
+    @Value("${spring.jdbc.datasource.password}")
+    private String password;
+
+    // 生成get set 和 toString方法
+    public String getDriverClassName() {
+        return driverClassName;
+    }
+
+    public void setDriverClassName(String driverClassName) {
+        this.driverClassName = driverClassName;
+    }
+
+    public String getUrl() {
+        return url;
+    }
+
+    public void setUrl(String url) {
+        this.url = url;
+    }
+
+    public String getUsername() {
+        return username;
+    }
+
+    public void setUsername(String username) {
+        this.username = username;
+    }
+
+    public String getPassword() {
+        return password;
+    }
+
+    public void setPassword(String password) {
+        this.password = password;
+    }
+
+    @Override
+    public String toString() {
+        return "DataSourceProperties{" +
+                "driverClassName='" + driverClassName + '\'' +
+                ", url='" + url + '\'' +
+                ", username='" + username + '\'' +
+                ", password='" + password + '\'' +
+                '}';
+    }
+}
+```
+
+**properties**文件我们已经使用了很多次了，但是他最大的缺点是缺乏曾经结构，如果配置文件的层级结构长，配置就会相对比较困难
+
+#### yaml文件
+
+yaml文件类似于json文件，具有层级结构，有良好的可读性，并且支持集合表示
+
+```yaml
+# YAML配置文件示例
+app_name: 我的应用程序
+version: 1.0.0
+author: 张三
+
+database:
+  host: localhost
+  port: 5432
+  username: admin
+  password: password123
+
+features:
+  - 登录
+  - 注册
+  - 仪表盘
+
+settings:
+  analytics: true
+  theme: dark
+  
+ spring:
+  jdbc:
+    datasource:
+      driverClassName: com.mysql.jdbc.Driver
+      url: jdbc:mysql:///springboot_02
+      username: root
+      password: root
+      
+server:
+  port: 80
+```
+
+外部读取配置文件
+
+```java
+public class User {
+    @Value("${lucas.root.username}")
+    private String username;
+    @Value("${lucas.root.password}")
+    private String password;
+    @Value("${lucas.root.gfs}")
+    private List<String> gfs;
+}
+```
+
+#### 批量读取外部文件
+
+```yaml
+# yaml有层次，可以继承
+server:
+  port: 80
+  servlet:
+    context-path: /boot
+
+lucas:
+  root:
+    username: root
+    password: 123456
+    gfs:
+      - 流萤
+      - 知更鸟
+      - 花火
+```
+
+如果按照上面的方式，每个属性我们都要写一次，或许有些麻烦，我们也可以采用批量读取外部文件的方式
+
+```java
+@Component
+@Data
+@ConfigurationProperties(prefix = "lucas.root") // 写通用的前缀
+public class User {
+    private String username;
+    private String password;
+    private List<String> gfs;
+}
+```
+
+编写controller
+
+```java
+@RestController
+@RequestMapping("user")
+public class UserController {
+    @Autowired
+    private User user;
+
+    @GetMapping("show")
+    public User show(){
+        return user;
+    }
+}
+```
+
+运行
+
+![](./assets/SpringBoot批量读取外部数据.png)
+
+#### 多环境配置和使用
+
+需求
+
+在Spring Boot中，可以使用多环境配置来根据不同的运行环境（如开发、测试、生产）加载不同的配置。SpringBoot支持多环境配置让应用程序在不同的环境中使用不同的配置参数，例如数据库连接信息、日志级别、缓存配置等。
+
+以下是实现Spring Boot多环境配置的常见方法：
+
+1. 属性文件分离：将应用程序的配置参数分离到不同的属性文件中，每个环境对应一个属性文件。例如，可以创建`application-dev.properties`、`application-prod.properties`和`application-test.properties`等文件。在这些文件中，可以定义各自环境的配置参数，如数据库连接信息、端口号等。然后，在`application.properties`中通过`spring.profiles.active`属性指定当前使用的环境。Spring Boot会根据该属性来加载对应环境的属性文件，覆盖默认的配置。
+2. YAML配置文件：与属性文件类似，可以将配置参数分离到不同的YAML文件中，每个环境对应一个文件。例如，可以创建`application-dev.yml`、`application-prod.yml`和`application-test.yml`等文件。在这些文件中，可以使用YAML语法定义各自环境的配置参数。同样，通过`spring.profiles.active`属性指定当前的环境，Spring Boot会加载相应的YAML文件。
+3. 命令行参数(动态)：可以通过命令行参数来指定当前的环境。例如，可以使用`--spring.profiles.active=dev`来指定使用开发环境的配置。
+
+通过上述方法，Spring Boot会根据当前指定的环境来加载相应的配置文件或参数，从而实现多环境配置。这样可以简化在不同环境之间的配置切换，并且确保应用程序在不同环境中具有正确的配置。
+
+1. 多环境配置（基于方式b实践）
+
+    > 创建开发、测试、生产三个环境的配置文件
+
+    application-dev.yml（开发）
+
+```YAML
+spring:
+  jdbc:
+    datasource:
+      driverClassName: com.mysql.cj.jdbc.Driver
+      url: jdbc:mysql:///dev
+      username: root
+      password: root
+```
+
+    application-test.yml（测试）
+
+```YAML
+spring:
+  jdbc:
+    datasource:
+      driverClassName: com.mysql.cj.jdbc.Driver
+      url: jdbc:mysql:///test
+      username: root
+      password: root
+```
+
+    application-prod.yml（生产）
+
+```YAML
+spring:
+  jdbc:
+    datasource:
+      driverClassName: com.mysql.cj.jdbc.Driver
+      url: jdbc:mysql:///prod
+      username: root
+      password: root
+```
+3. 环境激活
+
+```YAML
+spring:
+  profiles:
+    active: dev
+```
+4. 测试效果
+
+    ![](https://secure2.wostatic.cn/static/iE4SKEAYTwZ6Vay7HYUFAu/image.png?auth_key=1728994406-rsau8x9SxBQDAd1qTnSzUD-0-25d4844a7fc98536dc2e410c0ad8bba1)
+
+    **注意 :**
+
+    如果设置了spring.profiles.active，并且和application有重叠属性，以active设置优先。
+
+    如果设置了spring.profiles.active，和application无重叠属性，application设置依然生效！
+    
+    #### SpringBoot读取外部文件
+    
+    默认外部文件都应该放在**resource**文件夹下的**static**文件里，这里的**static**文件夹是约定，放在里面的文件会自动被扫描到，无需额外配置；如果要自定义文件夹，则需要修改配置`spring.resources.static-locations:`使用`classpath`自定义文件夹位置
+    
+    
+#### 拦截器配置
+
+    1. 拦截器声明
+    
+    ```Java
+    package com.atguigu.interceptor;
+    
+    import jakarta.servlet.http.HttpServletRequest;
+    import jakarta.servlet.http.HttpServletResponse;
+    import org.springframework.stereotype.Component;
+    import org.springframework.web.servlet.HandlerInterceptor;
+    import org.springframework.web.servlet.ModelAndView;
+    
+    @Component
+    public class MyInterceptor implements HandlerInterceptor {
+        @Override
+        public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
+            System.out.println("MyInterceptor拦截器的preHandle方法执行....");
+            return true;
+        }
+    
+        @Override
+        public void postHandle(HttpServletRequest request, HttpServletResponse response, Object handler, ModelAndView modelAndView) throws Exception {
+            System.out.println("MyInterceptor拦截器的postHandle方法执行....");
+        }
+    
+        @Override
+        public void afterCompletion(HttpServletRequest request, HttpServletResponse response, Object handler, Exception ex) throws Exception {
+            System.out.println("MyInterceptor拦截器的afterCompletion方法执行....");
+        }
+    }
+    ```
+    2. 拦截器配置
+    
+        正常使用配置类，只要保证，**配置类要在启动类的同包或者子包方可生效！**
+    
+    ```Java
+    package com.atguigu.config;
+    
+    import com.atguigu.interceptor.MyInterceptor;
+    import org.springframework.beans.factory.annotation.Autowired;
+    import org.springframework.context.annotation.Configuration;
+    import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
+    import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
+    
+    @Configuration
+    public class MvcConfig implements WebMvcConfigurer {
+    
+        @Autowired
+        private MyInterceptor myInterceptor ;
+    
+        /**
+         * /**  拦截当前目录及子目录下的所有路径 /user/**   /user/findAll  /user/order/findAll
+         * /*   拦截当前目录下的以及子路径   /user/*     /user/findAll
+         * @param registry
+         */
+        @Override
+        public void addInterceptors(InterceptorRegistry registry) {
+            registry.addInterceptor(myInterceptor).addPathPatterns("/**");
+        }
+     }    
+
+#### druid连接池配置
+
+maven插件
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>3.3.4</version>
+    </parent>
+
+    <groupId>com.atguigu</groupId>
+    <artifactId>springboot-base-druid-04</artifactId>
+    <version>1.0-SNAPSHOT</version>
+
+    <dependencies>
+        <!--  web开发的场景启动器 -->
+        <!--  web开发的场景启动器 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+
+        <!-- 数据库相关配置启动器 jdbctemplate 事务相关-->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-jdbc</artifactId>
+        </dependency>
+
+        <!-- druid启动器的依赖  -->
+        <dependency>
+            <groupId>com.alibaba</groupId>
+            <artifactId>druid-spring-boot-3-starter</artifactId>
+            <version>1.2.23</version>
+        </dependency>
+
+        <!-- 驱动类-->
+        <dependency>
+            <groupId>mysql</groupId>
+            <artifactId>mysql-connector-java</artifactId>
+            <version>8.0.28</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <version>1.18.28</version>
+        </dependency>
+
+    </dependencies>
+
+</project>
+```
+
+druid的基本配置
+
+因为我们Druid是高版本的，不存在兼容性问题，如果是低版本则还需要单独的配置文件
+
+```yaml
+spring:
+  datasource:
+    # 连接池类型
+    type: com.alibaba.druid.pool.DruidDataSource
+
+    # Druid的其他属性配置 springboot3整合情况下,数据库连接信息必须在Druid属性下!
+    druid:
+      url: jdbc:mysql://localhost:3306/mybatis-example
+      username: root
+      password: 123456
+      driver-class-name: com.mysql.cj.jdbc.Driver
+      # 初始化时建立物理连接的个数
+      initial-size: 5
+      # 连接池的最小空闲数量
+      min-idle: 5
+      # 连接池最大连接数量
+      max-active: 20
+      # 获取连接时最大等待时间，单位毫秒
+      max-wait: 60000
+      # 申请连接的时候检测，如果空闲时间大于timeBetweenEvictionRunsMillis，执行validationQuery检测连接是否有效。
+      test-while-idle: true
+      # 既作为检测的间隔时间又作为testWhileIdel执行的依据
+      time-between-eviction-runs-millis: 60000
+      # 销毁线程时检测当前连接的最后活动时间和当前时间差大于该值时，关闭当前连接(配置连接在池中的最小生存时间)
+      min-evictable-idle-time-millis: 30000
+      # 用来检测数据库连接是否有效的sql 必须是一个查询语句(oracle中为 select 1 from dual)
+      validation-query: select 1
+      # 申请连接时会执行validationQuery检测连接是否有效,开启会降低性能,默认为true
+      test-on-borrow: false
+      # 归还连接时会执行validationQuery检测连接是否有效,开启会降低性能,默认为true
+      test-on-return: false
+      # 是否缓存preparedStatement, 也就是PSCache,PSCache对支持游标的数据库性能提升巨大，比如说oracle,在mysql下建议关闭。
+      pool-prepared-statements: false
+      # 要启用PSCache，必须配置大于0，当大于0时，poolPreparedStatements自动触发修改为true。在Druid中，不会存在Oracle下PSCache占用内存过多的问题，可以把这个数值配置大一些，比如说100
+      max-pool-prepared-statement-per-connection-size: -1
+      # 合并多个DruidDataSource的监控数据
+      use-global-data-source-stat: true
+
+logging:
+  level:
+    root: debug
+```
+
+pojo类
+
+```java
+@Data
+public class Schedule {
+    private int id;
+    private String title;
+    private int completed;
+}
+```
+
+controller
+
+这里直接使用jdbc连接数据库，因为SpringBoot帮我们简化配置，可以直接获取`JdbcTemplate`类
+
+```java
+@RestController
+@RequestMapping("user")
+public class UserController {
+
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
+
+    @GetMapping("list")
+    public List<Schedule> list() {
+        String sql = "select * from schedule";
+        return jdbcTemplate.query(sql, new BeanPropertyRowMapper<>(Schedule.class));
+    }
+}
+```
+

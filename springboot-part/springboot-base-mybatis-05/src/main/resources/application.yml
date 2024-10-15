@@ -1,0 +1,18 @@
+#druid
+spring:
+  datasource:
+    type: com.alibaba.druid.pool.DruidDataSource
+    druid:
+      url: jdbc:mysql://localhost:3306/mybatis-example
+      username: root
+      password: 123456
+      driver-class-name: com.mysql.cj.jdbc.Driver
+
+#mybatis 抛弃了mybatis的config文件
+mybatis:
+  mapper-locations: classpath:/mappers/*.xml #指定xml文件的位置
+  type-aliases-package: com.atguigu.pojo
+  configuration:
+    map-underscore-to-camel-case: true
+    auto-mapping-behavior: full
+    log-impl: org.apache.ibatis.logging.slf4j.Slf4jImpl
