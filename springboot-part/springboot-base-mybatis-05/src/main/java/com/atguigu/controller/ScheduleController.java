@@ -18,16 +18,15 @@ public class ScheduleController {
     private UserMapper userMapper;
     @Autowired
     private UserService userService;
-//
-//    @GetMapping
-//    public List<Schedule> query() {
-//        return userMapper.queryList();
-//    }
 
     @GetMapping
-    public void delete(){
-        userService.delete();
+    public List<Schedule> query() {
+        return userMapper.queryList();
     }
 
+//    @GetMapping
+//    public void delete(){
+//        userService.delete();
+//    }
 
 }

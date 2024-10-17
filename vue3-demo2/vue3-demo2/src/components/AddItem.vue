@@ -11,7 +11,7 @@ let rt = useRouter()
 //定义展示标识和接收数据对象
 const editForm = reactive({
     title: '',
-    completed: false
+    completed: 0
 })
 
 async function addItem() {
@@ -42,8 +42,8 @@ function returnList() {
             <el-form-item label="状态" prop="completed">
                 <!-- 数据是否完成选项-->
                 <el-radio-group v-model="editForm.completed">
-                    <el-radio :label="true">已完成</el-radio>
-                    <el-radio :label="false">未完成</el-radio>
+                    <el-radio :label="1">已完成</el-radio>
+                    <el-radio :label="0">未完成</el-radio>
                 </el-radio-group>
             </el-form-item>
         </el-form>

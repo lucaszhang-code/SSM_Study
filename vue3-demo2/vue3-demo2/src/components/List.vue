@@ -44,7 +44,7 @@ let editVisible = ref(false)
 const editForm = reactive({
    id: 0,
    title: '',
-   completed: false
+   completed: 0
 })
 
 //自定义标签 编辑标签触发方法
@@ -149,8 +149,8 @@ let handlePageChange = (page)=>{
                   <el-form-item label="状态" prop="completed">
                      <!-- 数据是否完成选项-->
                      <el-radio-group v-model="editForm.completed">
-                        <el-radio :label="true">已完成</el-radio>
-                        <el-radio :label="false">未完成</el-radio>
+                        <el-radio :label="1">已完成</el-radio>
+                        <el-radio :label="0">未完成</el-radio>
                      </el-radio-group>
                   </el-form-item>
                </el-form>

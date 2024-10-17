@@ -4421,7 +4421,7 @@ public class User {
 }
 ```
 
-#### 批量读取外部文件
+### 批量读取外部文件
 
 ```yaml
 # yaml有层次，可以继承
@@ -4473,7 +4473,7 @@ public class UserController {
 
 ![](./assets/SpringBoot批量读取外部数据.png)
 
-#### 多环境配置和使用
+### 多环境配置和使用
 
 需求
 
@@ -4548,7 +4548,7 @@ spring:
     默认外部文件都应该放在**resource**文件夹下的**static**文件里，这里的**static**文件夹是约定，放在里面的文件会自动被扫描到，无需额外配置；如果要自定义文件夹，则需要修改配置`spring.resources.static-locations:`使用`classpath`自定义文件夹位置
     
     
-#### 拦截器配置
+### 拦截器配置
 
     1. 拦截器声明
     
@@ -4610,7 +4610,7 @@ spring:
         }
      }    
 
-#### druid连接池配置
+### druid连接池配置
 
 maven插件
 
@@ -4747,5 +4747,700 @@ public class UserController {
         return jdbcTemplate.query(sql, new BeanPropertyRowMapper<>(Schedule.class));
     }
 }
+```
+
+### Springboot整合mybatis
+
+导入依赖
+
+```xml
+ <dependencies>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.mybatis.spring.boot</groupId>
+            <artifactId>mybatis-spring-boot-starter</artifactId>
+            <version>3.0.3</version>
+        </dependency>
+
+        <!-- 数据库相关配置启动器 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-jdbc</artifactId>
+        </dependency>
+
+        <!-- druid启动器的依赖  -->
+        <dependency>
+            <groupId>com.alibaba</groupId>
+            <artifactId>druid-spring-boot-3-starter</artifactId>
+            <version>1.2.23</version>
+        </dependency>
+
+        <!-- 驱动类-->
+        <dependency>
+            <groupId>mysql</groupId>
+            <artifactId>mysql-connector-java</artifactId>
+            <version>8.0.28</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <version>1.18.28</version>
+        </dependency>
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-aop</artifactId>
+        </dependency>
+    </dependencies>
+```
+
+编写pojo实体类
+
+```java
+@Data
+public class Schedule {
+    private int id;
+    private String title;
+    private int completed;
+}
+```
+
+编写controller
+
+这里偷懒直接跳过service层
+
+```java
+@RequestMapping("schedule")
+@RestController
+public class ScheduleController {
+    @Autowired
+    private UserMapper userMapper;
+    @Autowired
+    private UserService userService;
+
+    @GetMapping
+    public List<Schedule> query() {
+        return userMapper.queryList();
+    }
+}
+```
+
+编写mapper
+
+```java
+@Mapper
+public interface UserMapper {
+   List<Schedule> queryList();
+}
+```
+
+编写ScheduleMapper.xml
+
+```xml
+<mapper namespace="com.atguigu.mapper.UserMapper">
+    <delete id="delete">
+        delete
+        from schedule
+        where id = #{id}
+    </delete>
+</mapper>
+```
+
+编写application.yaml
+
+```yaml
+#druid
+spring:
+  datasource:
+    type: com.alibaba.druid.pool.DruidDataSource
+    druid:
+      url: jdbc:mysql://localhost:3306/mybatis-example
+      username: root
+      password: 123456
+      driver-class-name: com.mysql.cj.jdbc.Driver
+
+#mybatis 抛弃了mybatis的config文件
+mybatis:
+  mapper-locations: classpath:/mappers/*.xml #指定xml文件的位置  这步特容易忘记！！！
+  type-aliases-package: com.atguigu.pojo	#起别名，忽略大小写，自定映射实体类
+  configuration:
+    map-underscore-to-camel-case: true
+    auto-mapping-behavior: full
+    log-impl: org.apache.ibatis.logging.slf4j.Slf4jImpl
+
+```
+
+编写main函数
+
+```java
+@SpringBootApplication
+@MapperScan("com.atguigu.mapper") // 指定mapper接口所在的位置
+public class Main {
+    public static void main(String[] args) {
+        SpringApplication.run(Main.class, args);
+    }
+}
+```
+
+运行
+
+```json	
+[{"id":4,"title":"学习JavaScript","completed":1},{"id":5,"title":"学习HTML5","completed":1},{"id":6,"title":"学习CSS3","completed":0},{"id":7,"title":"学习Vue.js","completed":1},{"id":8,"title":"学习React","completed":0},{"id":9,"title":"学习Angular","completed":1},{"id":10,"title":"学习Node.js","completed":0},{"id":11,"title":"学习Express","completed":1},{"id":12,"title":"学习Koa","completed":0},{"id":13,"title":"学习MongoDB","completed":1},{"id":14,"title":"学习MySQL","completed":0},{"id":15,"title":"学习Redis","completed":1},{"id":16,"title":"学习Git","completed":0},{"id":17,"title":"学习Docker","completed":1},{"id":18,"title":"学习Kubernetes","completed":0},{"id":19,"title":"学习AWS","completed":1},{"id":20,"title":"学习Azure","completed":0},{"id":22,"title":"SSM完成了","completed":1},{"id":23,"title":"学习Springboot","completed":0}]
+```
+
+### Springboot3项目打包
+
+安装打包插件
+
+```xml
+<!--    SpringBoot应用打包插件-->
+<build>
+    <plugins>
+        <plugin>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-maven-plugin</artifactId>
+        </plugin>
+    </plugins>
+</build>
+```
+
+运行package命令
+
+<img src="./assets/springboot打包.png" style="zoom:50%;" />
+
+项目会被打包成.jar文件，可以在服务器或者终端中直接运行
+
+## mybatis-plus
+
+mybatis-plus是mybatis的增强版，使用者可以在不写sql语句的情况下完成数据库的单表查询任务
+
+[mybatis-plus官方网址](https://baomidou.com/)
+
+特性：
+
+- **无侵入**：只做增强不做改变，引入它不会对现有工程产生影响，如丝般顺滑
+- **损耗小**：启动即会自动注入基本 CURD，性能基本无损耗，直接面向对象操作
+- **强大的 CRUD 操作**：内置通用 Mapper、通用 Service，仅仅通过少量配置即可实现单表大部分 CRUD 操作，更有强大的条件构造器，满足各类使用需求
+- **支持 Lambda 形式调用**：通过 Lambda 表达式，方便的编写各类查询条件，无需再担心字段写错
+- **支持主键自动生成**：支持多达 4 种主键策略（内含分布式唯一 ID 生成器 - Sequence），可自由配置，完美解决主键问题
+- **支持 ActiveRecord 模式**：支持 ActiveRecord 形式调用，实体类只需继承 Model 类即可进行强大的 CRUD 操作
+- **支持自定义全局通用操作**：支持全局通用方法注入（ Write once, use anywhere ）
+- **内置代码生成器**：采用代码或者 Maven 插件可快速生成 Mapper 、 Model 、 Service 、 Controller 层代码，支持模板引擎，更有超多自定义配置等您来使用
+- **内置分页插件**：基于 MyBatis 物理分页，开发者无需关心具体操作，配置好插件之后，写分页等同于普通 List 查询
+- **分页插件支持多种数据库**：支持 MySQL、MariaDB、Oracle、DB2、H2、HSQL、SQLite、Postgre、SQLServer 等多种数据库
+- **内置性能分析插件**：可输出 SQL 语句以及其执行时间，建议开发测试时启用该功能，能快速揪出慢查询
+- **内置全局拦截插件**：提供全表 delete 、 update 操作智能分析阻断，也可自定义拦截规则，预防误操作
+
+支持数据库：
+
+- MySQL，Oracle，DB2，H2，HSQL，SQLite，PostgreSQL，SQLServer，Phoenix，Gauss ，ClickHouse，Sybase，OceanBase，Firebird，Cubrid，Goldilocks，csiidb，informix，TDengine，redshift
+- 达梦数据库，虚谷数据库，人大金仓数据库，南大通用(华库)数据库，南大通用数据库，神通数据库，瀚高数据库，优炫数据库
+
+mybatis-plus总结：
+
+  自动生成单表的CRUD功能
+
+  提供丰富的条件拼接方式
+
+  全自动ORM类型持久层框架
+
+### 快速体验
+
+准备数据库
+
+```sql
+DROP TABLE IF EXISTS user;
+
+CREATE TABLE user
+(
+    id BIGINT(20) NOT NULL COMMENT '主键ID',
+    name VARCHAR(30) NULL DEFAULT NULL COMMENT '姓名',
+    age INT(11) NULL DEFAULT NULL COMMENT '年龄',
+    email VARCHAR(50) NULL DEFAULT NULL COMMENT '邮箱',
+    PRIMARY KEY (id)
+);
+
+INSERT INTO user (id, name, age, email) VALUES
+(1, 'Jone', 18, 'test1@baomidou.com'),
+(2, 'Jack', 20, 'test2@baomidou.com'),
+(3, 'Tom', 28, 'test3@baomidou.com'),
+(4, 'Sandy', 21, 'test4@baomidou.com'),
+(5, 'Billie', 24, 'test5@baomidou.com');
+
+```
+
+| id   | name   | age  | email                                           |
+| ---- | ------ | ---- | ----------------------------------------------- |
+| 1    | Jone   | 18   | [test1@baomidou.com](mailto:test1@baomidou.com) |
+| 2    | Jack   | 20   | [test2@baomidou.com](mailto:test2@baomidou.com) |
+| 3    | Tom    | 28   | [test3@baomidou.com](mailto:test3@baomidou.com) |
+| 4    | Sandy  | 21   | [test4@baomidou.com](mailto:test4@baomidou.com) |
+| 5    | Billie | 24   | [test5@baomidou.com](mailto:test5@baomidou.com) |
+
+准备springboot项目
+
+导入依赖库
+
+```xml
+ <dependencies>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter</artifactId>
+        </dependency>
+
+        <!-- 测试环境 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+        </dependency>
+
+        <!-- mybatis-plus  -->
+        <dependency>
+            <groupId>com.baomidou</groupId>
+            <artifactId>mybatis-plus-spring-boot3-starter</artifactId>
+            <version>3.5.7</version>
+        </dependency>
+
+        <!-- 数据库相关配置启动器 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-jdbc</artifactId>
+        </dependency>
+
+        <!-- druid启动器的依赖  -->
+        <dependency>
+            <groupId>com.alibaba</groupId>
+            <artifactId>druid-spring-boot-3-starter</artifactId>
+            <version>1.2.23</version>
+        </dependency>
+
+        <!-- 驱动类-->
+        <dependency>
+            <groupId>mysql</groupId>
+            <artifactId>mysql-connector-java</artifactId>
+            <version>8.0.28</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <version>1.18.28</version>
+        </dependency>
+
+    </dependencies>
+```
+
+注意是`mybatis-plus-spring-boot3-starter`这个库，在maven-search插件上搜不到，使用普通的会运行异常，可以在官网上找到、
+
+编写application.yaml文件
+
+```yaml
+# 连接池配置
+spring:
+  datasource:
+    type: com.alibaba.druid.pool.DruidDataSource
+    druid:
+      url: jdbc:mysql://localhost:3306/mybatis-example
+      username: root
+      password: 123456
+      driver-class-name: com.mysql.cj.jdbc.Driver
+```
+
+准备pojo类
+
+```java
+@Data
+public class User {
+    private Long id;
+    private String name;
+    private int age;
+    private String email;
+}
+```
+
+编写Mapper接口
+
+`UserMapper`继承于`BaseMapper`类，并且需要规定实体类
+
+```java
+@Mapper
+public interface UserMapper extends BaseMapper<User> {
+
+}
+```
+
+准备测试类
+
+**@SpringBootTest**是springboot的测试类注解，他可以为我们自动装配ioc
+
+`userMapper.selectList(null)`是将查询的结果以List返回，并且没有查询条件，null是默认查询全部
+
+```java
+@SpringBootTest
+public class SpringbootTest {
+
+    @Autowired
+    private UserMapper userMapper;
+
+    @Test
+    public void testSelect() {
+        List<User> userList = userMapper.selectList(null);
+        for (User user : userList) {
+            System.out.println(user);
+        }
+    }
+}
+```
+
+### crud简单讲解
+
+#### insert方法
+
+使用user类装配要插入的数据
+
+`insert`方法里面传要插入的数据，这里是整个类传进去
+
+```java
+// 插入一条记录
+// T 就是要插入的实体对象
+// 默认主键生成策略为雪花算法（后面讲解）
+int insert(T entity);
+```
+
+```java
+    @Test
+    public void insert() {
+        User user = new User();
+        user.setAge(18);
+        user.setName("Lucas");
+        user.setEmail("lucas@gmail.com");
+        int insert = userMapper.insert(user);
+        System.out.println(insert);
+    }
+```
+
+#### Delete方法
+
+```Java
+// 根据 entity 条件，删除记录
+int delete(@Param(Constants.WRAPPER) Wrapper<T> wrapper);
+
+// 删除（根据ID 批量删除）
+int deleteBatchIds(@Param(Constants.COLLECTION) Collection<? extends Serializable> idList);
+
+// 根据 ID 删除
+int deleteById(Serializable id);
+
+// 根据 columnMap 条件，删除记录
+int deleteByMap(@Param(Constants.COLUMN_MAP) Map<String, Object> columnMap);
+```
+
+| 类型                               | 参数名    | 描述                                 |
+| ---------------------------------- | --------- | ------------------------------------ |
+| Wrapper<T>                         | wrapper   | 实体对象封装操作类（可以为 null）    |
+| Collection<? extends Serializable> | idList    | 主键 ID 列表(不能为 null 以及 empty) |
+| Serializable                       | id        | 主键 ID                              |
+| Map<String, Object>                | columnMap | 表字段 map 对象                      |
+
+根据hashmap删除数据
+
+```java
+    @Test
+    public void delete(){
+        int rows = userMapper.deleteById(1846537586920222721L);
+        System.out.println(rows);
+        // map删除
+        Map param = new HashMap();
+        param.put("age",20);
+        int i = userMapper.deleteByMap(param);
+        System.out.println(i);
+    }
+```
+
+#### Update方法
+
+```Java
+// 根据 whereWrapper 条件，更新记录
+int update(@Param(Constants.ENTITY) T updateEntity, 
+            @Param(Constants.WRAPPER) Wrapper<T> whereWrapper);
+
+// 根据 ID 修改  主键属性必须值
+int updateById(@Param(Constants.ENTITY) T entity);
+```
+
+| 类型       | 参数名        | 描述                                                         |
+| ---------- | ------------- | ------------------------------------------------------------ |
+| T          | entity        | 实体对象 (set 条件值,可为 null)                              |
+| Wrapper<T> | updateWrapper | 实体对象封装操作类（可以为 null,里面的 entity 用于生成 where 语句） |
+
+```java
+    @Test
+    public void update(){
+        User user = new User();
+        user.setId(1L);
+        user.setAge(30);
+        int i = userMapper.updateById(user);
+        System.out.println(i);
+
+        // 将所有人的年龄改为22
+        User user1 = new User();
+        user1.setAge(22);
+        int update = userMapper.update(user1, null);
+        System.out.println(update);
+    }
+```
+
+#### Select方法
+
+```Java
+// 根据 ID 查询
+T selectById(Serializable id);
+
+// 根据 entity 条件，查询一条记录
+T selectOne(@Param(Constants.WRAPPER) Wrapper<T> queryWrapper);
+
+// 查询（根据ID 批量查询）
+List<T> selectBatchIds(@Param(Constants.COLLECTION) Collection<? extends Serializable> idList);
+
+// 根据 entity 条件，查询全部记录
+List<T> selectList(@Param(Constants.WRAPPER) Wrapper<T> queryWrapper);
+
+// 查询（根据 columnMap 条件）
+List<T> selectByMap(@Param(Constants.COLUMN_MAP) Map<String, Object> columnMap);
+
+// 根据 Wrapper 条件，查询全部记录
+List<Map<String, Object>> selectMaps(@Param(Constants.WRAPPER) Wrapper<T> queryWrapper);
+
+// 根据 Wrapper 条件，查询全部记录。注意： 只返回第一个字段的值
+List<Object> selectObjs(@Param(Constants.WRAPPER) Wrapper<T> queryWrapper);
+
+// 根据 entity 条件，查询全部记录（并翻页）
+IPage<T> selectPage(IPage<T> page, @Param(Constants.WRAPPER) Wrapper<T> queryWrapper);
+
+// 根据 Wrapper 条件，查询全部记录（并翻页）
+IPage<Map<String, Object>> selectMapsPage(IPage<T> page, @Param(Constants.WRAPPER) Wrapper<T> queryWrapper);
+
+// 根据 Wrapper 条件，查询总记录数
+Integer selectCount(@Param(Constants.WRAPPER) Wrapper<T> queryWrapper);
+```
+
+参数说明
+
+| 类型                               | 参数名       | 描述                                     |
+| ---------------------------------- | ------------ | ---------------------------------------- |
+| Serializable                       | id           | 主键 ID                                  |
+| Wrapper<T>                         | queryWrapper | 实体对象封装操作类（可以为 null）        |
+| Collection<? extends Serializable> | idList       | 主键 ID 列表(不能为 null 以及 empty)     |
+| Map<String, Object>                | columnMap    | 表字段 map 对象                          |
+| IPage<T>                           | page         | 分页查询条件（可以为 RowBounds.DEFAULT） |
+
+通过List批量查询
+
+```java
+    @Test
+    public void select(){
+        User user = userMapper.selectById(1L);
+        System.out.println(user);
+        List<Long> ids = new ArrayList<>();
+        ids.add(1L);
+        ids.add(3L);
+        List<User> users = userMapper.selectBatchIds(ids);
+        for (User user1 : users) {
+            System.out.println(user1);
+        }
+    }
+```
+
+### 基于Service层操作mybatis
+
+对于一些简单的crud业务，往往都是在mapper层进行数据库操作，Service层只有数据传递的作用，其实我们也可以在Service层就进行数据库操作，不在mapper层进行
+
+mapper层定义接口
+
+```java
+public interface UserMapper extends BaseMapper<User> {
+}
+```
+
+service层的接口
+
+继承于`IService`这个类，且必须要规定类型
+
+```java
+public interface UserService extends IService<User> {
+}
+```
+
+service实现类
+
+```java
+@Service
+public class UserServiceImpl implements UserService {
+}
+```
+
+如果直接这么写，我们就需要实现这么多方法
+
+![](./assets/service实现方法.png)
+
+我们当然没有能力去实现这么多方法，所以我们可以通过继承`ServiceImpl`，让他帮我实现这些方法,当然需要指定mapper接口和实体类
+
+```java
+@Service
+public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements UserService {
+}
+```
+
+通过service类就可以实现数据库操作
+
+值得注意的是**saveOrUpdate**方法，如果数据库中没有用户指定的数据，则会执行insert操作，如果有指定数据，就会进行update操作
+
+```java
+@SpringBootTest
+public class MybatisTest {
+
+    @Autowired
+    private UserService userService;
+
+    @Test
+    public void save() {
+        List<User> users = new ArrayList<>();
+        User user = new User();
+        user.setName("Lucas");
+        user.setAge(21);
+        user.setEmail("lucas@gmail.com");
+        users.add(user);
+
+        User user1 = new User();
+        user1.setName("Lucas");
+        user1.setAge(21);
+        user1.setEmail("lucas@gmail.com");
+        users.add(user1);
+
+        boolean b = userService.saveBatch(users);
+        System.out.println(b);
+    }
+
+    @Test
+    public void saveOrUpdate() {
+        User user = new User();
+        user.setId(1L);
+        user.setName("Lucas");
+        user.setAge(21);
+        user.setEmail("lucas@gmail.com");
+        userService.saveOrUpdate(user);
+    }
+
+    @Test
+    public void update() {
+        User user = new User();
+        user.setId(1L);
+        user.setName("Andy");
+        user.setAge(21);
+        user.setEmail("lucas@gmail.com");
+        userService.updateById(user);
+    }
+
+    @Test
+    public void delete(){
+
+    }
+}
+```
+
+### 分页查询的实现
+
+mybatis-plus提供了分页查询的接口
+
+导入分页插件
+
+在Main类中指定，因为Main类就相当于config类
+
+```Java
+@SpringBootApplication
+@MapperScan("com.atguigu.mapper")
+public class Main {
+    public static void main(String[] args) {
+        SpringApplication.run(Main.class, args);
+    }
+
+    @Bean
+    public MybatisPlusInterceptor mybatisPlusInterceptor() {
+        // mybatis-plus中的插件需要加入其中
+        MybatisPlusInterceptor interceptor = new MybatisPlusInterceptor();
+        // 分页插件
+        interceptor.addInnerInterceptor(new PaginationInnerInterceptor(DbType.MYSQL));
+        return interceptor;
+    }
+}
+```
+
+实现
+
+` Page<User> page = new Page<>(当前页，每页几条数据);`
+
+`userMapper.selectPage(Page类, Wrapper类);`
+
+```java
+    @Test
+    public void testPage() {
+        // IPage->page
+        Page<User> page = new Page<>(1, 3);
+        userMapper.selectPage(page, null);
+        // 结果也会被封装
+        System.out.println(page.getCurrent());  //页码
+        System.out.println(page.getSize()); 	// 页容量
+        System.out.println(page.getRecords());  // 当前页的数据
+        System.out.println(page.getTotal());    // 总条数
+    }
+```
+
+### 自定义mapper方法使用分页查询
+
+mapper接口
+
+结果用`IPage`类接收
+
+```java
+@Mapper
+public interface UserMapper extends BaseMapper<User> {
+    // 自己定义根据年龄参数查询
+    // 给age起别名
+    IPage<User> queryByAge(IPage<User> page, @Param("age") Integer age);
+}
+```
+
+编写UserMapper.xml
+
+```xml
+<mapper namespace="com.atguigu.mapper.UserMapper">
+    <!-- 写的是查询集合的泛型，page的泛型-->
+    <select id="queryByAge" resultType="user">
+        select * from user where age > #{age}
+    </select>
+</mapper>
+```
+
+test测试类
+
+```java
+    @Test
+    public void testMyPage() {
+        Page<User> page = new Page<>(1, 3);
+        userMapper.queryByAge(page, 21);
+        System.out.println(page.getCurrent());  //页码
+        System.out.println(page.getSize()); // 页容量
+        System.out.println(page.getRecords());  // 当前页的数据
+        System.out.println(page.getTotal());    // 总条数
+    }
 ```
 

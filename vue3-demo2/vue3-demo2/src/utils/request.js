@@ -3,7 +3,7 @@ import router from '../router/router'
 
 // 创建 Axios 实例 设置一些基础属性
 const request = axios.create({
-  baseURL:'http://localhost:8080/ssm',
+  baseURL:'http://localhost:8080/springboot',
   timeout: 10000
 })
 

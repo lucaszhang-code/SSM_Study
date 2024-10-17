@@ -14,6 +14,5 @@ public class UserService {
     public void delete() {
         int rows = userMapper.delete(2);
         System.out.println("rows:" + rows);
-        int i = 1 / 0;
     }
 }
