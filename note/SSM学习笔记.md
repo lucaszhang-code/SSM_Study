@@ -5444,3 +5444,244 @@ test测试类
     }
 ```
 
+### 条件构造器的使用
+
+[条件构造器官方文档](https://baomidou.com/guides/wrapper/)
+
+#### QueryWrapper
+
+![](https://secure2.wostatic.cn/static/pypDBsh99aubzMoetXxDbA/image.png?auth_key=1729211995-iSfUymk9VWneHuAAEHe8Ed-0-97df36dc5e4bb3126317e15f5d307133&file_size=670464)
+
+```java
+@SpringBootTest
+public class MyBatisQueryWrapper {
+
+    @Autowired
+    private UserMapper userMapper;
+
+    @Test
+    public void test_01(){
+        // 查询名字中包含A，且年龄在20-30之间,邮箱不等于null
+        QueryWrapper<User> queryWrapper = new QueryWrapper<>();
+        queryWrapper.like("name", "L");
+        queryWrapper. between("age", 20, 30);
+        queryWrapper.isNotNull("email");
+        userMapper.selectList(queryWrapper);
+    }
+
+    @Test
+    public void test_02(){
+        // 按照年龄降序查询
+        QueryWrapper<User> queryWrapper = new QueryWrapper<>();
+        queryWrapper.orderByDesc("age").orderByAsc("id");
+        userMapper.selectList(queryWrapper);
+    }
+
+    @Test
+    public void test_03(){
+        // 删除邮箱为空的
+        QueryWrapper<User> queryWrapper = new QueryWrapper<>();
+        queryWrapper.isNotNull("email");
+        userMapper.selectList(queryWrapper);
+    }
+
+    @Test
+    public void test_04(){
+        // 将年龄大于20且用户包含L或者邮箱为null的用户信息修改
+        QueryWrapper<User> queryWrapper = new QueryWrapper<>();
+        // 条件之间默认and
+        queryWrapper.gt("age", 20).
+                like("name", "L").
+                or().isNull("email");
+
+        User user = new User();
+        user.setAge(88);
+        user.setEmail("hehehe.com");
+        userMapper.update(user,queryWrapper);
+    }
+
+    @Test
+    public void test_05(){
+        // 查询user里面的name和age
+        QueryWrapper<User> queryWrapper = new QueryWrapper<>();
+        queryWrapper.gt("id", 1);
+        queryWrapper.select("name", "age");
+        userMapper.selectList(queryWrapper);
+    }
+
+    @Test
+    public void test_06(){
+        // 前端传入了两个参数，name和age，只有name不为空，作为条件；age>18，作为条件
+        // 允许我们放一个表达式，如果为true都生效，反之不生效
+        QueryWrapper<User> queryWrapper = new QueryWrapper<>();
+        String name = "Lucas";
+        Integer age = 20;
+        queryWrapper.eq((StringUtils.isNotBlank(name)),"name", name);
+        queryWrapper.eq((age != null && age > 18), "age", age);
+        userMapper.selectList(queryWrapper);
+    }
+}
+```
+
+####  UpdateWrapper
+
+  使用queryWrapper:
+
+```Java
+@Test
+public void test04() {
+    QueryWrapper<User> queryWrapper = new QueryWrapper<>();
+    //将年龄大于20并且用户名中包含有a或邮箱为null的用户信息修改
+    //UPDATE t_user SET age=?, email=? WHERE username LIKE ? AND age > ? OR email IS NULL)
+    queryWrapper
+            .like("username", "a")
+            .gt("age", 20)
+            .or()
+            .isNull("email");
+    User user = new User();
+    user.setAge(18);
+    user.setEmail("user@atguigu.com");
+    int result = userMapper.update(user, queryWrapper);
+    System.out.println("受影响的行数：" + result);
+}
+```
+
+  注意：使用queryWrapper + 实体类形式可以实现修改，但是无法将列值修改为null值！
+
+  使用updateWrapper:
+
+```Java
+@Test
+public void testQuick2(){
+
+    UpdateWrapper<User> updateWrapper = new UpdateWrapper<>();
+    //将id = 3 的email设置为null, age = 18
+    updateWrapper.eq("id",3)
+            .set("email",null)  // set 指定列和结果
+            .set("age",18);
+    //如果使用updateWrapper 实体对象写null即可!
+    int result = userMapper.update(null, updateWrapper);
+    System.out.println("result = " + result);
+
+}
+```
+
+  使用updateWrapper可以随意设置列的值！！
+
+  ### 核心注解
+
+#### @TableName注解
+
+一般而言实体类的名称和表的名称应该是一样的（忽略大小写）
+
+但是如果不一样，可以通过注解更换
+
+```java
+@TableName("sys_user") //对应数据库表名
+public class User {
+    private Long id;
+    private String name;
+    private Integer age;
+    private String email;
+}
+```
+
+如果全局的实体列加了一些前缀
+
+其他解决方案：全局设置前缀 ([https://www.baomidou.com/pages/56bac0/#基本配置](https://www.baomidou.com/pages/56bac0/#基本配置))
+
+```YAML
+mybatis-plus: # mybatis-plus的配置
+  global-config:
+    db-config:
+      table-prefix: sys_ # 表名前缀字符串
+```
+
+#### @TableId 注解
+
+- 描述：主键注解
+- 使用位置：实体类主键字段
+
+```Java
+@TableName("sys_user")
+public class User {
+    @TableId(value="主键列名",type=主键策略)
+    private Long id;
+    private String name;
+    private Integer age;
+    private String email;
+}
+```
+
+| 属性  | 类型   | 必须指定 | 默认值      | 描述         |
+| ----- | ------ | -------- | ----------- | ------------ |
+| value | String | 否       | ""          | 主键字段名   |
+| type  | Enum   | 否       | IdType.NONE | 指定主键类型 |
+
+
+    [IdType](https://github.com/baomidou/mybatis-plus/blob/3.0/mybatis-plus-annotation/src/main/java/com/baomidou/mybatisplus/annotation/IdType.java)属性可选值：
+
+| 值                | 描述                                                         |
+| ----------------- | ------------------------------------------------------------ |
+| AUTO              | 数据库 ID 自增 (mysql配置主键自增长)                         |
+| ASSIGN_ID（默认） | 分配 ID(主键类型为 Number(Long )或 String)(since 3.3.0),使用接口`IdentifierGenerator`的方法`nextId`(默认实现类为`DefaultIdentifierGenerator`雪花算法) |
+
+全局的配置
+
+```Java
+mybatis-plus:
+  configuration:
+    # 配置MyBatis日志
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+  global-config:
+    db-config:
+      # 配置MyBatis-Plus操作表的默认前缀
+      table-prefix: t_
+      # 配置MyBatis-Plus的主键策略
+      id-type: auto
+```
+
+#### 雪花算法使用场景
+
+雪花算法（Snowflake Algorithm）是一种用于生成唯一ID的算法。它由Twitter公司提出，用于解决分布式系统中生成全局唯一ID的需求。
+
+在传统的自增ID生成方式中，使用单点数据库生成ID会成为系统的瓶颈，而雪花算法通过在分布式系统中生成唯一ID，避免了单点故障和性能瓶颈的问题。
+
+雪花算法生成的ID是一个64位的整数，由以下几个部分组成：
+
+1. 时间戳：41位，精确到毫秒级，可以使用69年。
+2. 节点ID：10位，用于标识分布式系统中的不同节点。
+3. 序列号：12位，表示在同一毫秒内生成的不同ID的序号。
+
+通过将这三个部分组合在一起，雪花算法可以在分布式系统中生成全局唯一的ID，并保证ID的生成顺序性。
+
+雪花算法的工作方式如下：
+
+1. 当前时间戳从某一固定的起始时间开始计算，可以用于计算ID的时间部分。
+2. 节点ID是分布式系统中每个节点的唯一标识，可以通过配置或自动分配的方式获得。
+3. 序列号用于记录在同一毫秒内生成的不同ID的序号，从0开始自增，最多支持4096个ID生成。
+
+需要注意的是，雪花算法依赖于系统的时钟，需要确保系统时钟的准确性和单调性，否则可能会导致生成的ID不唯一或不符合预期的顺序。
+
+雪花算法是一种简单但有效的生成唯一ID的算法，广泛应用于分布式系统中，如微服务架构、分布式数据库、分布式锁等场景，以满足全局唯一标识的需求。
+
+**你需要记住的: 雪花算法生成的数字,需要使用Long 或者 String类型主键!!**
+
+1. @TableField
+
+    描述：字段注解（非主键）
+
+```Java
+@TableName("sys_user")
+public class User {
+    @TableId
+    private Long id;
+    @TableField("nickname")
+    private String name;
+    private Integer age;
+    private String email;
+}
+```
+
+-- 完 --
+
