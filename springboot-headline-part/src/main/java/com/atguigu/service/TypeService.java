@@ -1,7 +1,11 @@
 package com.atguigu.service;
 
+import com.atguigu.pojo.PortalVo;
 import com.atguigu.pojo.Type;
+import com.atguigu.utils.Result;
 import com.baomidou.mybatisplus.extension.service.IService;
+
+import java.util.List;
 
 /**
 * @author Lucas
@@ -9,5 +13,8 @@ import com.baomidou.mybatisplus.extension.service.IService;
 * @createDate 2024-10-18 10:55:37
 */
 public interface TypeService extends IService<Type> {
+
+    List<Type> findAllTypes();
+
 
 }

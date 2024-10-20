@@ -15,6 +15,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -86,6 +87,30 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
         Map<String, Object> data = new HashMap<>();
         data.put("loginUser", user);
         return Result.ok(data);
+    }
+
+    @Override
+    public Result checkUserName(String username) {
+       LambdaQueryWrapper<User> lambdaQueryWrapper = new LambdaQueryWrapper<>();
+       lambdaQueryWrapper.eq(User::getUsername, username);
+       User user = userMapper.selectOne(lambdaQueryWrapper);
+       if (user != null) {
+           return Result.build(null, ResultCodeEnum.USERNAME_USED);
+       }
+       return Result.ok(null);
+    }
+
+    @Override
+    public Result register(User user) {
+        LambdaQueryWrapper<User> lambdaQueryWrapper = new LambdaQueryWrapper<>();
+        lambdaQueryWrapper.eq(User::getUsername, user.getUsername());
+        Long count = userMapper.selectCount(lambdaQueryWrapper);
+        if (count > 0) {
+            return Result.build(null, ResultCodeEnum.USERNAME_USED);
+        }
+        user.setUserPwd(MD5Util.encrypt(user.getUserPwd()));
+        userMapper.insert(user);
+        return Result.ok(null);
     }
 }
 
